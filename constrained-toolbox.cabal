@@ -1,9 +1,13 @@
 cabal-version:       2.2
 name:                constrained-toolbox
 version:             0.1
-synopsis:            constrained-toolbox project
+synopsis:            Run isolated toolbox containers with podman
 description:
-        Short paragraph here
+        This tool (originally based on the toolbox-constrained project)
+        allows running isolated toolbox containers with podman.
+        Mounting of home and host integration are not enabled by default,
+        but one can choose to enable such capabilities specified in
+        a toml configuration file.
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Jens Petersen <juhpetersen@gmail.com>
@@ -13,15 +17,18 @@ category:            Unclassified
 homepage:            https://github.com/juhp/constrained-toolbox
 bug-reports:         https://github.com/juhp/constrained-toolbox/issues
 build-type:          Simple
---  extra-doc-files:     README.md
---                       ChangeLog.md
--- tested-with:         GHC == 8.10.7
---                       || == 9.0.2
---                       || == 9.2.8
---                       || == 9.4.8
---                       || == 9.6.7
---                       || == 9.8.4
---                       || == 9.10.3
+extra-doc-files:     README.md
+                     ChangeLog.md
+                     example/config.toml
+tested-with:         GHC == 8.10.7
+                      || == 9.0.2
+                      || == 9.2.8
+                      || == 9.4.8
+                      || == 9.6.7
+                      || == 9.8.4
+                      || == 9.10.3
+                      || == 9.12.4
+                      || == 9.14.1
 
 source-repository head
   type:                git
@@ -37,8 +44,8 @@ executable constrained-toolbox
                      , extra
                      , filepath
                      , containers
-                     , simple-cmd
-                     , simple-cmd-args
+                     , simple-cmd >= 0.2.3
+                     , simple-cmd-args >= 0.1.8
                      , text
                      , toml-reader
                      , unix

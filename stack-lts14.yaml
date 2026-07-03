@@ -1,0 +1,5 @@
+snapshot: lts-14.27
+extra-deps:
+- toml-reader-0.2.1.0
+- simple-cmd-args-0.1.8
+- simple-cmd-0.2.3
