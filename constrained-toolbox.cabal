@@ -34,9 +34,9 @@ executable constrained-toolbox
   hs-source-dirs:      src
   build-depends:       base < 5
                      , directory
+                     , extra
                      , filepath
                      , htoml
-                     , process
                      , simple-cmd
                      , simple-cmd-args
                      , text

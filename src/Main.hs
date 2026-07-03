@@ -3,21 +3,19 @@
 module Main (main) where
 
 import Control.Exception (finally)
-import Data.List (intercalate)
+import Control.Monad (when)
+import Data.List.Extra (intercalate, splitOn, unzip4)
 import qualified Data.HashMap.Strict as HM
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Vector as V
 import System.Directory (doesFileExist, getHomeDirectory)
-import System.Environment (lookupEnv)
-import System.Exit (exitFailure, exitWith)
 import System.FilePath ((</>))
-import System.IO (hPutStrLn, stderr)
+import System.Posix.Env (getEnvDefault)
 import System.Posix.User (getEffectiveUserName)
-import System.Process (rawSystem)
 
-import SimpleCmd (cmdBool, cmdFull, cmdSilent)
+import SimpleCmd (cmd_, cmdBool, cmdFull, cmdSilent, error')
 import SimpleCmdArgs
 
 import Text.Toml (parseTomlDoc)
@@ -61,8 +59,7 @@ run toolbox vols envs paths inits caps readonly dryrun refresh ephemeral command
   home <- getHomeDirectory
   username <- getEffectiveUserName
 
-  let envParts = ["HOME=" ++ shellQuote home]
-                 ++ pathEnvPart allpaths
+  let envParts = ("HOME=" ++ shellQuote home) : pathEnvPart allpaths
       initSetup = mkInitSetup allinits
       userCmdParts = mkUserCmd command allinits
       runuserCmd = "env " ++ unwords (envParts ++ map shellQuote userCmdParts)
@@ -76,7 +73,9 @@ run toolbox vols envs paths inits caps readonly dryrun refresh ephemeral command
 
   let cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
              "--user", "root", "-e", "HOME=" ++ home]
-            ++ readOnlyFlags readonly
+            ++ (if readonly
+                then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
+                else [])
             ++ concatMap (\m -> ["-v", m]) mounts
             ++ concatMap (\e -> ["-e", e]) envVars
             ++ [image, "sh", "-c", setup]
@@ -84,12 +83,9 @@ run toolbox vols envs paths inits caps readonly dryrun refresh ephemeral command
   if dryrun
     then putStrLn $ unwords (map shellQuote cmd)
     else do
-      let cleanup = if ephemeral
-                    then removeImage image
-                    else return ()
-      flip finally cleanup $ do
-        rc <- rawSystem "podman" (drop 1 cmd)
-        exitWith rc
+      let cleanup = when ephemeral $ removeImage image
+      flip finally cleanup $
+        cmd_ "podman" (drop 1 cmd)
 
 -- image management
 
@@ -104,7 +100,7 @@ commitToolbox toolbox refresh = do
                       ["commit", "--disable-compression", toolbox, image] ""
       if ok
         then return image
-        else die $ "could not commit toolbox container '"
+        else error' $ "could not commit toolbox container '"
              ++ toolbox ++ "': " ++ err
 
 removeImage :: String -> IO ()
@@ -126,7 +122,7 @@ loadConfig = do
     else do
       content <- T.readFile path
       case parseTomlDoc path content of
-        Left e -> die $ "config parse error: " ++ show e
+        Left e -> error' $ "config parse error: " ++ show e
         Right table -> return (Just table)
 
 getCapabilities :: Maybe Table -> Table
@@ -157,7 +153,7 @@ resolveCap caps name =
       let available = if HM.null caps
                       then "(none defined)"
                       else intercalate ", " $ map T.unpack $ HM.keys caps
-      die $ "unknown capability '" ++ name ++ "'. Available: " ++ available
+      error' $ "unknown capability '" ++ name ++ "'. Available: " ++ available
 
 getStringList :: String -> Table -> [String]
 getStringList key table =
@@ -180,7 +176,7 @@ nodeToString _ = Nothing
 addSelinuxLabel :: String -> IO String
 addSelinuxLabel spec =
   case break (== ':') spec of
-    (_, []) -> die $ "invalid mount spec '" ++ spec ++ "', expected HOST:CONTAINER[:opts]"
+    (_, []) -> error' $ "invalid mount spec '" ++ spec ++ "', expected HOST:CONTAINER[:opts]"
     (hostPart, _:rest') -> do
       let (containerPart, optsPart) =
             case break (== ':') rest' of
@@ -191,7 +187,7 @@ addSelinuxLabel spec =
       let labeled = case optsPart of
             Nothing -> hostExp ++ ":" ++ containerExp ++ ":Z"
             Just o ->
-              let flags = splitOn ',' o
+              let flags = splitOn "," o
               in if "z" `elem` flags || "Z" `elem` flags
                  then hostExp ++ ":" ++ containerExp ++ ":" ++ o
                  else hostExp ++ ":" ++ containerExp ++ ":" ++ o ++ ",Z"
@@ -213,7 +209,7 @@ expandEnvVars [] = return []
 expandEnvVars ('$':'{':rest) =
   case break (== '}') rest of
     (var, '}':after) -> do
-      val <- getEnvDefault var
+      val <- getEnvDefault var ""
       rest' <- expandEnvVars after
       return (val ++ rest')
     _ -> do
@@ -226,7 +222,7 @@ expandEnvVars ('$':rest) =
        rest' <- expandEnvVars rest
        return ('$' : rest')
      else do
-       val <- getEnvDefault var
+       val <- getEnvDefault var ""
        rest' <- expandEnvVars after
        return (val ++ rest')
   where
@@ -234,13 +230,6 @@ expandEnvVars ('$':rest) =
 expandEnvVars (c:rest) = do
   rest' <- expandEnvVars rest
   return (c : rest')
-
-getEnvDefault :: String -> IO String
-getEnvDefault var = do
-  val <- lookupEnv var
-  case val of
-    Just v -> return v
-    Nothing -> return ""
 
 -- shell command construction
 
@@ -266,10 +255,6 @@ mkUserCmd cmd inits@(_:_) =
   in ["sh", "-c", cmdStr]
 mkUserCmd cmd [] = cmd
 
-readOnlyFlags :: Bool -> [String]
-readOnlyFlags False = []
-readOnlyFlags True = ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
-
 -- utilities
 
 shellQuote :: String -> String
@@ -280,22 +265,3 @@ shellQuote s
     isSafe c = c `elem` (['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "-_./=:@,+")
     escSQ '\'' = "'\\''"
     escSQ c = [c]
-
-splitOn :: Char -> String -> [String]
-splitOn _ [] = []
-splitOn sep s =
-  let (before, rest) = break (== sep) s
-  in before : case rest of
-       [] -> []
-       (_:after) -> splitOn sep after
-
-unzip4 :: [(a,b,c,d)] -> ([a],[b],[c],[d])
-unzip4 [] = ([],[],[],[])
-unzip4 ((a,b,c,d):rest) =
-  let (as,bs,cs,ds) = unzip4 rest
-  in (a:as, b:bs, c:cs, d:ds)
-
-die :: String -> IO a
-die msg = do
-  hPutStrLn stderr $ "error: " ++ msg
-  exitFailure
