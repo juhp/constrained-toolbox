@@ -27,22 +27,37 @@ main =
   "constrained-toolbox"
   "Run a toolbox image in an isolated podman container" $
   run
-  <$> argumentWith str "TOOLBOX"
+  <$> optional (argumentWith str "TOOLBOX")
   <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
   <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variables")
   <*> many (strOptionWith 'P' "path" "DIR" "Prepend a directory to PATH inside the container")
   <*> many (strOptionWith 'i' "init" "CMD" "Run a bash snippet before entering the container")
   <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
   <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
+  <*> switchLongWith "caps" "List available capabilities from the config file"
   <*> switchLongWith "readonly" "Make the container filesystem read-only"
   <*> switchLongWith "dryrun" "Print the podman command instead of running it"
   <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
   <*> switchLongWith "delete" "Remove the committed image after running"
   <*> many (argumentWith str "CMD")
 
-run :: String -> [String] -> [String] -> [String] -> [String] -> [String]
-    -> Maybe String -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
-run toolbox vols envs paths inits caps mproject readonly dryrun refresh delete command = do
+run :: Maybe String -> [String] -> [String] -> [String] -> [String] -> [String]
+    -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
+run mtoolbox vols envs paths inits caps mproject listcaps readonly dryrun refresh delete command =
+  if listcaps
+    then do
+      config <- loadConfig
+      let capabilities = getCapabilities config
+      if Map.null capabilities
+        then putStrLn "No capabilities defined"
+        else do
+          putStrLn "Available capabilities:"
+          mapM_ (putStrLn . ("  " ++) . T.unpack) $ Map.keys capabilities
+    else do
+  let toolbox =
+        case mtoolbox of
+          Just t -> t
+          Nothing -> error' "TOOLBOX argument required"
   mprojectDir <-
     case mproject of
       Just dir -> Just <$> (expandPath dir >>= canonicalizePath)

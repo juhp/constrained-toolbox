@@ -3,7 +3,7 @@
 A Haskell rewrite of the fine [toolbox-constrained](https://github.com/swick/toolbox-constrained) tool.
 
 Run a [Toolbx](https://containertoolbx.org/) image in an isolated
-podman container. Unlike `toolbox enter`, this does **not** bind-mount
+podman container. Unlike `toolbox enter`, this does *not* bind-mount
 your home directory or integrate with the host by default.
 You explicitly choose what the container can access.
 
@@ -57,11 +57,12 @@ $ constrained-toolbox my-toolbox --dryrun
 ```
 constrained-toolbox
 
-Usage: constrained-toolbox [--version] TOOLBOX 
-                           [-v|--volume HOST:CONTAINER[:opts]] 
-                           [-e|--env KEY[=VALUE]] [-P|--path DIR] 
-                           [-i|--init CMD] [--cap NAME] [-p|--project DIR] 
-                           [--readonly] [--dryrun] [--refresh] [--delete] [CMD]
+Usage: constrained-toolbox [--version] [TOOLBOX]
+                           [-v|--volume HOST:CONTAINER[:opts]]
+                           [-e|--env KEY[=VALUE]] [-P|--path DIR]
+                           [-i|--init CMD] [--cap NAME] [-p|--project DIR]
+                           [--caps] [--readonly] [--dryrun] [--refresh]
+                           [--delete] [CMD]
 
   Run a toolbox image in an isolated podman container
 
@@ -75,6 +76,7 @@ Available options:
   -i,--init CMD            Run a bash snippet before entering the container
   --cap NAME               Enable a capability from the config file
   -p,--project DIR         Mount a project directory and set as workdir
+  --caps                   List available capabilities from the config file
   --readonly               Make the container filesystem read-only
   --dryrun                 Print the podman command instead of running it
   --refresh                Force re-commit of the toolbox image
