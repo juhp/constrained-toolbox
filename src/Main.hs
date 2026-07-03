@@ -40,17 +40,17 @@ main =
   <*> switchLongWith "readonly" "make the container filesystem read-only"
   <*> switchLongWith "dryrun" "print the podman command instead of running it"
   <*> switchLongWith "refresh" "force re-commit of the toolbox image"
-  <*> switchLongWith "ephemeral" "remove the committed image after running"
+  <*> switchLongWith "delete" "remove the committed image after running"
   <*> many (argumentWith str "CMD")
 
 run :: String -> [String] -> [String] -> [String] -> [String] -> [String]
     -> Maybe String -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
-run toolbox vols envs paths inits caps mproject readonly dryrun refresh ephemeral command = do
+run toolbox vols envs paths inits caps mproject readonly dryrun refresh delete command = do
   mprojectDir <-
     case mproject of
       Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
       Nothing -> return Nothing
-  image <- commitToolbox toolbox refresh ephemeral
+  image <- commitToolbox toolbox refresh delete
   config <- loadConfig
   let capabilities = getCapabilities config
 
@@ -98,17 +98,17 @@ run toolbox vols envs paths inits caps mproject readonly dryrun refresh ephemera
   if dryrun
     then putStrLn $ unwords (map shellQuote cmd)
     else do
-      let cleanup = when ephemeral $ removeImage image
+      let cleanup = when delete $ removeImage image
       flip finally cleanup $
         cmd_ "podman" (drop 1 cmd)
 
 -- image management
 
 commitToolbox :: String -> Bool -> Bool -> IO String
-commitToolbox toolbox refresh ephemeral = do
+commitToolbox toolbox refresh delete = do
   let baseImage = "toolbox-constrained-" ++ toolbox
   image <-
-    if ephemeral
+    if delete
     then do
       pid <- getProcessID
       return $ baseImage ++ "-" ++ show pid
