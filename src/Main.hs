@@ -12,6 +12,7 @@ import qualified Data.Text.IO as T
 import qualified Data.Vector as V
 import System.Directory (doesFileExist, getHomeDirectory)
 import System.FilePath ((</>))
+import System.Posix.Process (getProcessID)
 import System.Posix.Env (getEnvDefault)
 import System.Posix.User (getEffectiveUserName)
 
@@ -44,7 +45,7 @@ main =
 run :: String -> [String] -> [String] -> [String] -> [String] -> [String]
     -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
 run toolbox vols envs paths inits caps readonly dryrun refresh ephemeral command = do
-  image <- commitToolbox toolbox refresh
+  image <- commitToolbox toolbox refresh ephemeral
   config <- loadConfig
   let capabilities = getCapabilities config
 
@@ -89,9 +90,15 @@ run toolbox vols envs paths inits caps readonly dryrun refresh ephemeral command
 
 -- image management
 
-commitToolbox :: String -> Bool -> IO String
-commitToolbox toolbox refresh = do
-  let image = "toolbox-constrained-" ++ toolbox
+commitToolbox :: String -> Bool -> Bool -> IO String
+commitToolbox toolbox refresh ephemeral = do
+  let baseImage = "toolbox-constrained-" ++ toolbox
+  image <-
+    if ephemeral
+    then do
+      pid <- getProcessID
+      return $ baseImage ++ "-" ++ show pid
+    else return baseImage
   exists <- cmdBool "podman" ["image", "exists", image]
   if exists && not refresh
     then return image
