@@ -5,11 +5,9 @@ module Main (main) where
 import Control.Exception (finally)
 import Control.Monad (when)
 import Data.List.Extra (intercalate, splitOn, unzip4)
-import qualified Data.HashMap.Strict as HM
+import qualified Data.Map.Strict as Map
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import qualified Data.Vector as V
 import System.Directory (canonicalizePath, doesFileExist, getHomeDirectory)
 import System.FilePath ((</>), takeFileName)
 import System.Posix.Process (getProcessID)
@@ -19,8 +17,7 @@ import System.Posix.User (getEffectiveUserName)
 import SimpleCmd (cmd_, cmdBool, cmdFull, cmdSilent, error')
 import SimpleCmdArgs
 
-import Text.Toml (parseTomlDoc)
-import Text.Toml.Types (Node(..), Table)
+import TOML (Value(..), Table, renderTOMLError, decodeFile)
 
 import Paths_constrained_toolbox (version)
 
@@ -141,17 +138,17 @@ loadConfig = do
   if not exists
     then return Nothing
     else do
-      content <- T.readFile path
-      case parseTomlDoc path content of
-        Left e -> error' $ "config parse error: " ++ show e
+      result <- decodeFile path
+      case result of
+        Left e -> error' $ "config parse error: " ++ T.unpack (renderTOMLError e)
         Right table -> return (Just table)
 
 getCapabilities :: Maybe Table -> Table
-getCapabilities Nothing = HM.empty
+getCapabilities Nothing = Map.empty
 getCapabilities (Just table) =
-  case HM.lookup (T.pack "capabilities") table of
-    Just (VTable t) -> t
-    _ -> HM.empty
+  case Map.lookup (T.pack "capabilities") table of
+    Just (Table t) -> t
+    _ -> Map.empty
 
 resolveCapabilities :: Table -> [String] -> IO ([String], [String], [String], [String])
 resolveCapabilities caps capNames = do
@@ -161,8 +158,8 @@ resolveCapabilities caps capNames = do
 
 resolveCap :: Table -> String -> IO ([String], [String], [String], [String])
 resolveCap caps name =
-  case HM.lookup (T.pack name) caps of
-    Just (VTable cap) ->
+  case Map.lookup (T.pack name) caps of
+    Just (Table cap) ->
       return ( getStringList "volumes" cap
              , getStringList "env" cap
              , getStringList "path" cap
@@ -171,26 +168,26 @@ resolveCap caps name =
                  Nothing -> []
              )
     _ -> do
-      let available = if HM.null caps
+      let available = if Map.null caps
                       then "(none defined)"
-                      else intercalate ", " $ map T.unpack $ HM.keys caps
+                      else intercalate ", " $ map T.unpack $ Map.keys caps
       error' $ "unknown capability '" ++ name ++ "'. Available: " ++ available
 
 getStringList :: String -> Table -> [String]
 getStringList key table =
-  case HM.lookup (T.pack key) table of
-    Just (VArray arr) -> mapMaybe nodeToString (V.toList arr)
+  case Map.lookup (T.pack key) table of
+    Just (Array arr) -> mapMaybe valueToString arr
     _ -> []
 
 getStringVal :: String -> Table -> Maybe String
 getStringVal key table =
-  case HM.lookup (T.pack key) table of
-    Just (VString t) -> Just (T.unpack t)
+  case Map.lookup (T.pack key) table of
+    Just (String t) -> Just (T.unpack t)
     _ -> Nothing
 
-nodeToString :: Node -> Maybe String
-nodeToString (VString t) = Just (T.unpack t)
-nodeToString _ = Nothing
+valueToString :: Value -> Maybe String
+valueToString (String t) = Just (T.unpack t)
+valueToString _ = Nothing
 
 -- SELinux labeling
 
