@@ -206,12 +206,12 @@ addSelinuxLabel spec =
       hostExp <- expandPath hostPart
       containerExp <- expandPath containerPart
       let labeled = case optsPart of
-            Nothing -> hostExp ++ ":" ++ containerExp ++ ":Z"
+            Nothing -> hostExp ++ ":" ++ containerExp ++ ":z"
             Just o ->
               let flags = splitOn "," o
               in if "z" `elem` flags || "Z" `elem` flags
                  then hostExp ++ ":" ++ containerExp ++ ":" ++ o
-                 else hostExp ++ ":" ++ containerExp ++ ":" ++ o ++ ",Z"
+                 else hostExp ++ ":" ++ containerExp ++ ":" ++ o ++ ",z"
       return labeled
 
 -- path and env expansion
