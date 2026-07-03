@@ -59,7 +59,7 @@ run toolbox vols envs paths inits caps mproject readonly dryrun refresh delete c
 
   let projectVol =
         case mprojectDir of
-          Just d -> [d ++ ":" ++ '/' : takeFileName d]
+          Just d -> [d ++ ":" ++ rootDest d]
           Nothing -> []
       volumes = vols ++ extraVols ++ projectVol
       envVars = envs ++ extraEnvs
@@ -83,7 +83,7 @@ run toolbox vols envs paths inits caps mproject readonly dryrun refresh delete c
 
   let workdirPart =
         case mprojectDir of
-          Just d -> ["--workdir", '/' : takeFileName d]
+          Just d -> ["--workdir", rootDest d]
           Nothing -> []
       cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
              "--user", "root", "-e", "HOME=" ++ home]
@@ -215,6 +215,9 @@ addSelinuxLabel spec =
       return labeled
 
 -- path and env expansion
+
+rootDest :: FilePath -> FilePath
+rootDest dir = '/' : takeFileName dir
 
 expandPath :: String -> IO String
 expandPath ('~':'/':rest) = do
