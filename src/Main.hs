@@ -31,16 +31,16 @@ main =
   "Run a toolbox image in an isolated podman container" $
   run
   <$> argumentWith str "TOOLBOX"
-  <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "bind mount (repeatable)")
-  <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "set or pass through an environment variable (repeatable)")
-  <*> many (strOptionWith 'P' "path" "DIR" "prepend a directory to PATH inside the container (repeatable)")
-  <*> many (strOptionWith 'i' "init" "CMD" "run a bash snippet before entering the container (repeatable)")
-  <*> many (strOptionLongWith "cap" "NAME" "enable a capability from the config file (repeatable)")
-  <*> optional (strOptionWith 'p' "project" "DIR" "mount a project directory (default: cwd) and set as workdir")
-  <*> switchLongWith "readonly" "make the container filesystem read-only"
-  <*> switchLongWith "dryrun" "print the podman command instead of running it"
-  <*> switchLongWith "refresh" "force re-commit of the toolbox image"
-  <*> switchLongWith "delete" "remove the committed image after running"
+  <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
+  <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variables")
+  <*> many (strOptionWith 'P' "path" "DIR" "Prepend a directory to PATH inside the container")
+  <*> many (strOptionWith 'i' "init" "CMD" "Run a bash snippet before entering the container")
+  <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
+  <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
+  <*> switchLongWith "readonly" "Make the container filesystem read-only"
+  <*> switchLongWith "dryrun" "Print the podman command instead of running it"
+  <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
+  <*> switchLongWith "delete" "Remove the committed image after running"
   <*> many (argumentWith str "CMD")
 
 run :: String -> [String] -> [String] -> [String] -> [String] -> [String]
