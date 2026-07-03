@@ -10,8 +10,8 @@ import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Vector as V
-import System.Directory (doesFileExist, getHomeDirectory)
-import System.FilePath ((</>))
+import System.Directory (canonicalizePath, doesFileExist, getHomeDirectory)
+import System.FilePath ((</>), takeFileName)
 import System.Posix.Process (getProcessID)
 import System.Posix.Env (getEnvDefault)
 import System.Posix.User (getEffectiveUserName)
@@ -33,9 +33,10 @@ main =
   <$> argumentWith str "TOOLBOX"
   <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "bind mount (repeatable)")
   <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "set or pass through an environment variable (repeatable)")
-  <*> many (strOptionWith 'p' "path" "DIR" "prepend a directory to PATH inside the container (repeatable)")
+  <*> many (strOptionWith 'P' "path" "DIR" "prepend a directory to PATH inside the container (repeatable)")
   <*> many (strOptionWith 'i' "init" "CMD" "run a bash snippet before entering the container (repeatable)")
   <*> many (strOptionLongWith "cap" "NAME" "enable a capability from the config file (repeatable)")
+  <*> optional (strOptionWith 'p' "project" "DIR" "mount a project directory (default: cwd) and set as workdir")
   <*> switchLongWith "readonly" "make the container filesystem read-only"
   <*> switchLongWith "dryrun" "print the podman command instead of running it"
   <*> switchLongWith "refresh" "force re-commit of the toolbox image"
@@ -43,8 +44,12 @@ main =
   <*> many (argumentWith str "CMD")
 
 run :: String -> [String] -> [String] -> [String] -> [String] -> [String]
-    -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
-run toolbox vols envs paths inits caps readonly dryrun refresh ephemeral command = do
+    -> Maybe String -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
+run toolbox vols envs paths inits caps mproject readonly dryrun refresh ephemeral command = do
+  mprojectDir <-
+    case mproject of
+      Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
+      Nothing -> return Nothing
   image <- commitToolbox toolbox refresh ephemeral
   config <- loadConfig
   let capabilities = getCapabilities config
@@ -52,7 +57,11 @@ run toolbox vols envs paths inits caps readonly dryrun refresh ephemeral command
   (extraVols, extraEnvs, extraPaths, extraInits) <-
     resolveCapabilities capabilities caps
 
-  let volumes = vols ++ extraVols
+  let projectVol =
+        case mprojectDir of
+          Just d -> [d ++ ":" ++ '/' : takeFileName d]
+          Nothing -> []
+      volumes = vols ++ extraVols ++ projectVol
       envVars = envs ++ extraEnvs
       allpaths = paths ++ extraPaths
       allinits = inits ++ extraInits
@@ -72,8 +81,13 @@ run toolbox vols envs paths inits caps readonly dryrun refresh ephemeral command
 
   mounts <- mapM addSelinuxLabel volumes
 
-  let cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
+  let workdirPart =
+        case mprojectDir of
+          Just d -> ["--workdir", '/' : takeFileName d]
+          Nothing -> []
+      cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
              "--user", "root", "-e", "HOME=" ++ home]
+            ++ workdirPart
             ++ (if readonly
                 then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
                 else [])
@@ -205,10 +219,9 @@ addSelinuxLabel spec =
 expandPath :: String -> IO String
 expandPath ('~':'/':rest) = do
   home <- getHomeDirectory
-  expandEnvVars (home </> rest)
-expandPath ('~':rest) = do
-  home <- getHomeDirectory
-  expandEnvVars (home </> rest)
+  rest' <- expandEnvVars rest
+  return $ home </> rest'
+expandPath "~" = getHomeDirectory
 expandPath s = expandEnvVars s
 
 expandEnvVars :: String -> IO String
