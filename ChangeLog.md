@@ -9,3 +9,4 @@
 - support PATH[:opts] shorthand for same host/container mount path
   (makes config incompatible with toolbox-constrained)
 - add `--no-network` option to disable network access
+- exit cleanly on shell error instead of throwing an exception

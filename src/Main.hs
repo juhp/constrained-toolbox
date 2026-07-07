@@ -4,6 +4,7 @@ module Main (main) where
 
 import Control.Exception (finally)
 import Control.Monad (when)
+import System.Exit (exitWith)
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (mapMaybe)
@@ -14,8 +15,9 @@ import System.Posix.Process (getProcessID)
 import System.Posix.Env (getEnvDefault)
 import System.Posix.Files (getFileStatus, isSocket)
 import System.Posix.User (getEffectiveUserName)
+import System.Process (rawSystem)
 
-import SimpleCmd (cmd_, cmdBool, cmdFull, cmdSilent, error')
+import SimpleCmd (cmdBool, cmdFull, cmdSilent, error')
 import SimpleCmdArgs
 
 import TOML (Value(..), Table, renderTOMLError, decodeFile)
@@ -119,8 +121,9 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly nonetwork dry
     then putStrLn $ unwords (map shellQuote cmd)
     else do
       let cleanup = when delete $ removeImage image
-      flip finally cleanup $
-        cmd_ "podman" (drop 1 cmd)
+      flip finally cleanup $ do
+        ret <- rawSystem "podman" (drop 1 cmd)
+        exitWith ret
 
 -- image management
 

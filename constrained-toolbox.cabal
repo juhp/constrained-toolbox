@@ -44,6 +44,7 @@ executable constrained-toolbox
                      , extra
                      , filepath
                      , containers
+                     , process
                      , simple-cmd >= 0.2.3
                      , simple-cmd-args >= 0.1.8
                      , text
