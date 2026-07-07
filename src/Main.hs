@@ -22,6 +22,9 @@ import TOML (Value(..), Table, renderTOMLError, decodeFile)
 
 import Paths_constrained_toolbox (version)
 
+progname :: String
+progname = "constrained-toolbox"
+
 main :: IO ()
 main =
   simpleCmdArgs (Just version)
@@ -86,9 +89,10 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly dryrun refres
       initSetup = mkInitSetup allinits
       userCmdParts = mkUserCmd command allinits
       runuserCmd = "env " ++ unwords (envParts ++ map shellQuote userCmdParts)
+      sudoers = "/etc/sudoers.d" </> progname
       setup = "echo " ++ shellQuote (username ++ " ALL=(ALL) NOPASSWD:ALL")
-              ++ " > /etc/sudoers.d/toolbox-constrained"
-              ++ " && chmod 440 /etc/sudoers.d/toolbox-constrained"
+              ++ " > " ++ sudoers
+              ++ " && chmod 440 " ++ sudoers
               ++ initSetup
               ++ " && exec runuser -u " ++ username ++ " -- " ++ runuserCmd
 
@@ -120,7 +124,7 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly dryrun refres
 
 commitToolbox :: String -> Bool -> Bool -> IO String
 commitToolbox toolbox refresh delete = do
-  let baseImage = "toolbox-constrained-" ++ toolbox
+  let baseImage = progname ++ '-' : toolbox
   image <-
     if delete
     then do
@@ -146,7 +150,7 @@ removeImage image = cmdSilent "podman" ["rmi", image]
 configPath :: IO FilePath
 configPath = do
   home <- getHomeDirectory
-  return $ home </> ".config/toolbox-constrained/config.toml"
+  return $ home </> ".config" </> progname </> "config.toml"
 
 loadConfig :: IO (Maybe Table)
 loadConfig = do
@@ -305,12 +309,12 @@ mkInitSetup :: [String] -> String
 mkInitSetup [] = ""
 mkInitSetup snippets =
   let content = intercalate "\\n" snippets
-  in " && printf " ++ shellQuote content ++ " > /tmp/toolbox-constrained-init.sh"
+  in " && printf " ++ shellQuote content ++ " > /tmp" </> progname ++ "-init.sh"
 
 mkUserCmd :: [String] -> [String] -> [String]
 mkUserCmd [] inits = mkUserCmd ["bash"] inits
 mkUserCmd ["bash"] (_:_) =
-  ["bash", "--rcfile", "/tmp/toolbox-constrained-init.sh"]
+  ["bash", "--rcfile", "/tmp" </> progname ++ "-init.sh"]
 mkUserCmd cmd inits@(_:_) =
   let initChain = intercalate " && " inits
       cmdStr = initChain ++ " && exec " ++ unwords (map shellQuote cmd)

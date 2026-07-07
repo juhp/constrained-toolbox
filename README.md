@@ -86,7 +86,7 @@ Available options:
 ## Capabilities
 
 Define reusable groups of volumes, environment variables, PATH entries,
-and init commands in `~/.config/toolbox-constrained/config.toml`:
+and init commands in `~/.config/constrained-toolbox/config.toml`:
 
 ```toml
 [capabilities.ssh]
