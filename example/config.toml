@@ -7,6 +7,7 @@ volumes = ["~/.gitconfig:~/.gitconfig:ro"]
 [capabilities.wayland]
 env = ["WAYLAND_DISPLAY", "XDG_RUNTIME_DIR"]
 volumes = ["$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"]
+security_opts = ["label=disable"]
 
 [capabilities.rust]
 path = ["~/.cargo/bin"]

@@ -4,7 +4,7 @@ module Main (main) where
 
 import Control.Exception (finally)
 import Control.Monad (when)
-import Data.List.Extra (intercalate, splitOn, unzip4)
+import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
@@ -67,7 +67,7 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly dryrun refres
   config <- loadConfig
   let capabilities = getCapabilities config
 
-  (extraVols, extraEnvs, extraPaths, extraInits) <-
+  (extraVols, extraEnvs, extraPaths, extraInits, extraSecurityOpts) <-
     resolveCapabilities capabilities caps
 
   let projectVol =
@@ -104,6 +104,7 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly dryrun refres
             ++ (if readonly
                 then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
                 else [])
+            ++ concatMap (\s -> ["--security-opt", s]) extraSecurityOpts
             ++ concatMap (\m -> ["-v", m]) mounts
             ++ concatMap (\e -> ["-e", e]) envVars
             ++ [image, "sh", "-c", setup]
@@ -166,13 +167,16 @@ getCapabilities (Just table) =
     Just (Table t) -> t
     _ -> Map.empty
 
-resolveCapabilities :: Table -> [String] -> IO ([String], [String], [String], [String])
+resolveCapabilities :: Table -> [String] -> IO ([String], [String], [String], [String], [String])
 resolveCapabilities caps capNames = do
   results <- mapM (resolveCap caps) capNames
-  let (vs, es, ps, is) = unzip4 results
-  return (concat vs, concat es, concat ps, concat is)
+  let (vs, es, ps, is, ss) = unzip5 results
+  return (concat vs, concat es, concat ps, concat is, concat ss)
+  where
+    unzip5 = foldr (\(a,b,c,d,e) (as,bs,cs,ds,es) -> (a:as,b:bs,c:cs,d:ds,e:es))
+                   ([],[],[],[],[])
 
-resolveCap :: Table -> String -> IO ([String], [String], [String], [String])
+resolveCap :: Table -> String -> IO ([String], [String], [String], [String], [String])
 resolveCap caps name =
   case Map.lookup (T.pack name) caps of
     Just (Table cap) ->
@@ -182,6 +186,7 @@ resolveCap caps name =
              , case getStringVal "init" cap of
                  Just s -> [s]
                  Nothing -> []
+             , getStringList "security_opts" cap
              )
     _ -> do
       let available = if Map.null caps

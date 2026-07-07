@@ -98,6 +98,7 @@ volumes = ["~/.gitconfig:~/.gitconfig:ro"]
 [capabilities.wayland]
 env = ["WAYLAND_DISPLAY", "XDG_RUNTIME_DIR"]
 volumes = ["$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"]
+security_opts = ["label=disable"]
 
 [capabilities.rust]
 path = ["~/.cargo/bin"]
@@ -109,6 +110,7 @@ Each capability can define:
 - `env` — list of environment variables to set or pass through
 - `path` — list of directories to prepend to `$PATH`
 - `init` — a bash snippet to run on container startup
+- `security_opts` — list of `--security-opt` values passed to podman
 
 `~` and envvars are expanded in volume and path specs.
 
