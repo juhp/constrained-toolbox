@@ -8,10 +8,11 @@ import Data.List.Extra (intercalate, splitOn, unzip4)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
-import System.Directory (canonicalizePath, doesFileExist, getHomeDirectory)
+import System.Directory (canonicalizePath, doesFileExist, doesPathExist, getHomeDirectory)
 import System.FilePath ((</>), takeFileName)
 import System.Posix.Process (getProcessID)
 import System.Posix.Env (getEnvDefault)
+import System.Posix.Files (getFileStatus, isSocket)
 import System.Posix.User (getEffectiveUserName)
 
 import SimpleCmd (cmd_, cmdBool, cmdFull, cmdSilent, error')
@@ -217,14 +218,25 @@ addSelinuxLabel spec =
               (c, _:o) -> (c, Just o)
       hostExp <- expandPath hostPart
       containerExp <- expandPath containerPart
+      sockFile <- isSocketFile hostExp
       let labeled = case optsPart of
-            Nothing -> hostExp ++ ":" ++ containerExp ++ ":z"
+            Nothing ->
+              if sockFile
+              then hostExp ++ ":" ++ containerExp
+              else hostExp ++ ":" ++ containerExp ++ ":z"
             Just o ->
               let flags = splitOn "," o
-              in if "z" `elem` flags || "Z" `elem` flags
+              in if sockFile || "z" `elem` flags || "Z" `elem` flags
                  then hostExp ++ ":" ++ containerExp ++ ":" ++ o
                  else hostExp ++ ":" ++ containerExp ++ ":" ++ o ++ ",z"
       return labeled
+
+isSocketFile :: FilePath -> IO Bool
+isSocketFile path = do
+  exists <- doesPathExist path
+  if exists
+    then isSocket <$> getFileStatus path
+    else return False
 
 -- path and env expansion
 
