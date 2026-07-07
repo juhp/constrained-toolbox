@@ -13,7 +13,7 @@ license-file:        LICENSE
 author:              Jens Petersen <juhpetersen@gmail.com>
 maintainer:          Jens Petersen <juhpetersen@gmail.com>
 copyright:           2026  Jens Petersen <juhpetersen@gmail.com>
-category:            Unclassified
+category:            Utility
 homepage:            https://github.com/juhp/constrained-toolbox
 bug-reports:         https://github.com/juhp/constrained-toolbox/issues
 build-type:          Simple

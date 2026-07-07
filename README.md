@@ -5,7 +5,7 @@ A Haskell rewrite of the fine [toolbox-constrained](https://github.com/swick/too
 Run a [Toolbx](https://containertoolbx.org/) image in an isolated
 podman container. Unlike `toolbox enter`, this does *not* bind-mount
 your home directory or integrate with the host by default.
-You explicitly choose what the container can access.
+You explicitly choose what "capabilities" the container can access.
 
 ```
 constrained-toolbox TOOLBOX [options] [CMD...]
