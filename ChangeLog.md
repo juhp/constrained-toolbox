@@ -8,3 +8,4 @@
 - add `security_opts` capability field
 - support PATH[:opts] shorthand for same host/container mount path
   (makes config incompatible with toolbox-constrained)
+- add `--no-network` option to disable network access

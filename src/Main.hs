@@ -40,14 +40,15 @@ main =
   <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
   <*> switchLongWith "caps" "List available capabilities from the config file"
   <*> switchLongWith "readonly" "Make the container filesystem read-only"
+  <*> switchLongWith "no-network" "Disable network access"
   <*> switchLongWith "dryrun" "Print the podman command instead of running it"
   <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
   <*> switchLongWith "delete" "Remove the committed image after running"
   <*> many (argumentWith str "CMD")
 
 run :: Maybe String -> [String] -> [String] -> [String] -> [String] -> [String]
-    -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
-run mtoolbox vols envs paths inits caps mproject listcaps readonly dryrun refresh delete command =
+    -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
+run mtoolbox vols envs paths inits caps mproject listcaps readonly nonetwork dryrun refresh delete command =
   if listcaps
     then do
       config <- loadConfig
@@ -108,6 +109,7 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly dryrun refres
             ++ (if readonly
                 then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
                 else [])
+            ++ (if nonetwork then ["--net", "none"] else [])
             ++ concatMap (\s -> ["--security-opt", s]) extraSecurityOpts
             ++ concatMap (\m -> ["-v", m]) mounts
             ++ concatMap (\e -> ["-e", e]) envVars
