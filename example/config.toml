@@ -2,11 +2,11 @@
 volumes = ["~/.ssh:~/.ssh:ro"]
 
 [capabilities.git]
-volumes = ["~/.gitconfig:~/.gitconfig:ro"]
+volumes = ["~/.gitconfig:ro"]
 
 [capabilities.wayland]
 env = ["WAYLAND_DISPLAY", "XDG_RUNTIME_DIR"]
-volumes = ["$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"]
+volumes = ["$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"]
 security_opts = ["label=disable"]
 
 [capabilities.rust]
@@ -14,8 +14,8 @@ path = ["~/.cargo/bin"]
 
 [capabilities.claude]
 volumes = [
-    "~/.claude:~/.claude",
-    "~/.claude.json:~/.claude.json",
+    "~/.claude",
+    "~/.claude.json",
 ]
 
 [capabilities.default]

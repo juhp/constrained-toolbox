@@ -93,11 +93,11 @@ and init commands in `~/.config/toolbox-constrained/config.toml`:
 volumes = ["~/.ssh:~/.ssh:ro"]
 
 [capabilities.git]
-volumes = ["~/.gitconfig:~/.gitconfig:ro"]
+volumes = ["~/.gitconfig:ro"]
 
 [capabilities.wayland]
 env = ["WAYLAND_DISPLAY", "XDG_RUNTIME_DIR"]
-volumes = ["$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"]
+volumes = ["$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"]
 security_opts = ["label=disable"]
 
 [capabilities.rust]
@@ -113,6 +113,8 @@ Each capability can define:
 - `security_opts` — list of `--security-opt` values passed to podman
 
 `~` and envvars are expanded in volume and path specs.
+If the host and container paths are the same, you can use the shorthand
+`PATH[:opts]` instead of `PATH:PATH[:opts]`.
 
 ## How it works
 

@@ -215,13 +215,18 @@ valueToString _ = Nothing
 addSelinuxLabel :: String -> IO String
 addSelinuxLabel spec =
   case break (== ':') spec of
-    (_, []) -> error' $ "invalid mount spec '" ++ spec ++ "', expected HOST:CONTAINER[:opts]"
-    (hostPart, _:rest') -> do
-      let (containerPart, optsPart) =
-            case break (== ':') rest' of
-              (c, []) -> (c, Nothing)
-              (c, _:o) -> (c, Just o)
+    (hostPart, []) -> do
       hostExp <- expandPath hostPart
+      sockFile <- isSocketFile hostExp
+      return $ hostExp ++ ":" ++ hostExp ++ if sockFile then "" else ":z"
+    (hostPart, _:rest') -> do
+      hostExp <- expandPath hostPart
+      let (containerPart, optsPart)
+            | isPathStart rest' =
+                case break (== ':') rest' of
+                  (c, [])  -> (c, Nothing)
+                  (c, _:o) -> (c, Just o)
+            | otherwise = (hostExp, if null rest' then Nothing else Just rest')
       containerExp <- expandPath containerPart
       sockFile <- isSocketFile hostExp
       let labeled = case optsPart of
@@ -235,6 +240,11 @@ addSelinuxLabel spec =
                  then hostExp ++ ":" ++ containerExp ++ ":" ++ o
                  else hostExp ++ ":" ++ containerExp ++ ":" ++ o ++ ",z"
       return labeled
+  where
+    isPathStart ('/':_) = True
+    isPathStart ('~':_) = True
+    isPathStart ('$':_) = True
+    isPathStart _       = False
 
 isSocketFile :: FilePath -> IO Bool
 isSocketFile path = do
