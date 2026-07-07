@@ -126,11 +126,19 @@ If the host and container paths are the same, you can use the shorthand
    so multiple containers can safely access the same directories
 5. If `--delete` is used, the committed image is removed after exit
 
-## Building
+## Installation
+
+A copr repo is available for Fedora and Epel 10:
+
+<https://copr.fedorainfracloud.org/coprs/petersen/constrained-toolbox/>
+
+## Building from source
 
 ```bash
 cabal install
 ```
+
+or `stack install`.
 
 ## Requirements
 
