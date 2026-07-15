@@ -144,3 +144,9 @@ or `stack install`.
 
 - [podman](https://podman.io/) and [buildah](https://buildah.io/)
 - An existing toolbox container (created with `toolbox create`)
+
+## Related projects
+
+I already mentioned [toolbox-constrained](https://github.com/swick/toolbox-constrained) which this project is derived from.
+
+There is also similarly [schupfn](https://github.com/whot/schupfn/) which uses qemu to run a toolbox container image in a VM with a direct private ssh connection.
