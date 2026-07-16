@@ -5,8 +5,6 @@
 
 module Main (main) where
 
-import Control.Exception (finally)
-import Control.Monad (when)
 import System.Exit (exitWith)
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
@@ -30,6 +28,9 @@ import Paths_constrained_toolbox (version)
 progname :: String
 progname = "constrained-toolbox"
 
+data Mode = Caps | DeleteImage | Run
+  deriving Eq
+
 data Opts = Opts
   { mtoolbox :: Maybe String
   , vols :: [String]
@@ -39,13 +40,12 @@ data Opts = Opts
   , caps :: [String]
   , mproject :: Maybe FilePath
   , mhome :: Maybe FilePath
-  , listcaps :: Bool
+  , mode :: Mode
   , readonly :: Bool
   , nonetwork :: Bool
   , unique :: Bool
   , dryrun :: Bool
   , refresh :: Bool
-  , delete :: Bool
   , command :: [String]
   }
 
@@ -64,19 +64,18 @@ main =
   <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
   <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
   <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home")
-  <*> switchLongWith "caps" "List available capabilities from the config file"
+  <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
+       flagLongWith Run DeleteImage "delete-image" "Remove the image")
   <*> switchLongWith "readonly" "Make the container filesystem read-only"
   <*> switchLongWith "no-network" "Disable network access"
   <*> switchLongWith "unique" "Run a new container even if one is already running"
   <*> switchLongWith "dryrun" "Print the podman command instead of running it"
   <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
-  <*> switchLongWith "delete" "Remove the committed image after running"
   <*> many (argumentWith str "CMD"))
 
 run :: Opts -> IO ()
-run (Opts {..}) =
-  if listcaps
-    then do
+run (Opts {..})
+  | mode == Caps = do
       config <- loadConfig
       let capabilities = getCapabilities config
       if Map.null capabilities
@@ -84,11 +83,9 @@ run (Opts {..}) =
         else do
           putStrLn "Available capabilities:"
           mapM_ (putStrLn . ("  " ++) . T.unpack) $ Map.keys capabilities
-    else do
-  let toolbox =
-        case mtoolbox of
-          Just t -> t
-          Nothing -> error' "TOOLBOX argument required"
+  | mode == DeleteImage =
+      removeImage (progname ++ "-" ++ toolbox)
+  | otherwise = do
   container <-
     if unique
     then do
@@ -120,7 +117,7 @@ run (Opts {..}) =
         case mhome of
           Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
           Nothing -> return Nothing
-      image <- commitToolbox toolbox refresh delete
+      image <- commitToolbox toolbox refresh
       config <- loadConfig
       let capabilities = getCapabilities config
 
@@ -184,22 +181,19 @@ run (Opts {..}) =
       if dryrun
         then putStrLn $ unwords (map shellQuote cmd)
         else do
-          let cleanup = when delete $ removeImage image
-          flip finally cleanup $ do
-            ret <- rawSystem "podman" (drop 1 cmd)
-            exitWith ret
+          ret <- rawSystem "podman" (drop 1 cmd)
+          exitWith ret
+  where
+    toolbox =
+      case mtoolbox of
+        Just t -> t
+        Nothing -> error' "TOOLBOX argument required"
 
 -- image management
 
-commitToolbox :: String -> Bool -> Bool -> IO String
-commitToolbox toolbox refresh delete = do
-  let baseImage = progname ++ '-' : toolbox
-  image <-
-    if delete
-    then do
-      pid <- getProcessID
-      return $ baseImage ++ "-" ++ show pid
-    else return baseImage
+commitToolbox :: String -> Bool -> IO String
+commitToolbox toolbox refresh = do
+  let image = progname ++ '-' : toolbox
   exists <- cmdBool "podman" ["image", "exists", image]
   if exists && not refresh
     then return image

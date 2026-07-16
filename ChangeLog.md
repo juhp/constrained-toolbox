@@ -5,6 +5,7 @@
 - name the container and exec into it if already running
 - add `--unique` option to run a separate container instance
 - make home directory writable and workdir by default
+- change `--delete` to `--delete-image` standalone command
 
 ## 0.1 (2026-07-03)
 - initial release with `--delete` and `--project` options

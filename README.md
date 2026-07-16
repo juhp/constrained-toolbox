@@ -60,12 +60,13 @@ $ constrained-toolbox my-toolbox --dryrun
 ```
 constrained-toolbox
 
-Usage: constrained-toolbox [--version] [TOOLBOX] 
-                           [-v|--volume HOST:CONTAINER[:opts]] 
-                           [-e|--env KEY[=VALUE]] [-P|--path DIR] 
-                           [-i|--init CMD] [--cap NAME] [-p|--project DIR] 
-                           [--home DIR] [--caps] [--readonly] [--no-network] 
-                           [--unique] [--dryrun] [--refresh] [--delete] [CMD]
+Usage: constrained-toolbox [--version] [TOOLBOX]
+                           [-v|--volume HOST:CONTAINER[:opts]]
+                           [-e|--env KEY[=VALUE]] [-P|--path DIR]
+                           [-i|--init CMD] [--cap NAME] [-p|--project DIR]
+                           [--home DIR] [--caps | --delete-image] [--readonly]
+                           [--no-network] [--unique] [--dryrun] [--refresh]
+                           [CMD]
 
   Run a toolbox image in an isolated podman container
 
@@ -81,12 +82,12 @@ Available options:
   -p,--project DIR         Mount a project directory and set as workdir
   --home DIR               Mount a directory as a writable home
   --caps                   List available capabilities from the config file
+  --delete-image           Remove the image
   --readonly               Make the container filesystem read-only
   --no-network             Disable network access
   --unique                 Run a new container even if one is already running
   --dryrun                 Print the podman command instead of running it
   --refresh                Force re-commit of the toolbox image
-  --delete                 Remove the committed image after running
 ```
 
 ## Capabilities
@@ -130,7 +131,6 @@ If the host and container paths are the same, you can use the shorthand
 3. Sets up passwordless `sudo` inside the container
 4. Bind mounts get SELinux `:z` (shared) labels automatically,
    so multiple containers can safely access the same directories
-5. If `--delete` is used, the committed image is removed after exit
 
 ## Installation
 
