@@ -66,79 +66,95 @@ run mtoolbox vols envs paths inits caps mproject mhome listcaps readonly nonetwo
         case mtoolbox of
           Just t -> t
           Nothing -> error' "TOOLBOX argument required"
-  mprojectDir <-
-    case mproject of
-      Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
-      Nothing -> return Nothing
-  mhomeDir <-
-    case mhome of
-      Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
-      Nothing -> return Nothing
-  image <- commitToolbox toolbox refresh delete
-  config <- loadConfig
-  let capabilities = getCapabilities config
-
-  (extraVols, extraEnvs, extraPaths, extraInits, extraSecurityOpts) <-
-    resolveCapabilities capabilities caps
-
-  home <- getHomeDirectory
-  username <- getEffectiveUserName
-
-  homeVol <-
-    case mhomeDir of
-      Just d -> do
-        createDirectoryIfMissing True d
-        return [d ++ ":" ++ home]
-      Nothing -> return []
-
-  let projectVol =
-        case mprojectDir of
-          Just d -> [d ++ ":" ++ rootDest d]
-          Nothing -> []
-      volumes = homeVol ++ vols ++ extraVols ++ projectVol
-      envVars = envs ++ extraEnvs
-      allpaths = paths ++ extraPaths
-      allinits = inits ++ extraInits
-
-  let envParts = ("HOME=" ++ shellQuote home) : pathEnvPart allpaths
-      initSetup = mkInitSetup allinits
-      userCmdParts = mkUserCmd command allinits
-      runuserCmd = "env " ++ unwords (envParts ++ map shellQuote userCmdParts)
-      sudoers = "/etc/sudoers.d" </> progname
-      setup = "echo " ++ shellQuote (username ++ " ALL=(ALL) NOPASSWD:ALL")
-              ++ " > " ++ sudoers
-              ++ " && chmod 440 " ++ sudoers
-              ++ initSetup
-              ++ " && exec runuser -u " ++ username ++ " -- " ++ runuserCmd
-
-  mounts <- mapM addSelinuxLabel volumes
-
-  let workdirPart =
-        case mprojectDir of
-          Just d -> ["--workdir", rootDest d]
-          Nothing ->
-            case mhomeDir of
-              Just _ -> ["--workdir", home]
-              Nothing -> []
-      cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
-             "--user", "root", "-e", "HOME=" ++ home]
-            ++ workdirPart
-            ++ (if readonly
-                then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
-                else [])
-            ++ (if nonetwork then ["--net", "none"] else [])
-            ++ concatMap (\s -> ["--security-opt", s]) extraSecurityOpts
-            ++ concatMap (\m -> ["-v", m]) mounts
-            ++ concatMap (\e -> ["-e", e]) envVars
-            ++ [image, "sh", "-c", setup]
-
-  if dryrun
-    then putStrLn $ unwords (map shellQuote cmd)
+      container = progname ++ "-" ++ toolbox
+  running <- cmdBool "podman" ["container", "exists", container]
+  if running
+    then do
+      home <- getHomeDirectory
+      username <- getEffectiveUserName
+      let execCmd = ["podman", "exec", "-it", container,
+                     "runuser", "-u", username, "--",
+                     "env", "HOME=" ++ home, "bash"]
+      if dryrun
+        then putStrLn $ unwords (map shellQuote execCmd)
+        else do
+          ret <- rawSystem "podman" (drop 1 execCmd)
+          exitWith ret
     else do
-      let cleanup = when delete $ removeImage image
-      flip finally cleanup $ do
-        ret <- rawSystem "podman" (drop 1 cmd)
-        exitWith ret
+      mprojectDir <-
+        case mproject of
+          Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
+          Nothing -> return Nothing
+      mhomeDir <-
+        case mhome of
+          Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
+          Nothing -> return Nothing
+      image <- commitToolbox toolbox refresh delete
+      config <- loadConfig
+      let capabilities = getCapabilities config
+
+      (extraVols, extraEnvs, extraPaths, extraInits, extraSecurityOpts) <-
+        resolveCapabilities capabilities caps
+
+      home <- getHomeDirectory
+      username <- getEffectiveUserName
+
+      homeVol <-
+        case mhomeDir of
+          Just d -> do
+            createDirectoryIfMissing True d
+            return [d ++ ":" ++ home]
+          Nothing -> return []
+
+      let projectVol =
+            case mprojectDir of
+              Just d -> [d ++ ":" ++ rootDest d]
+              Nothing -> []
+          volumes = homeVol ++ vols ++ extraVols ++ projectVol
+          envVars = envs ++ extraEnvs
+          allpaths = paths ++ extraPaths
+          allinits = inits ++ extraInits
+
+      let envParts = ("HOME=" ++ shellQuote home) : pathEnvPart allpaths
+          initSetup = mkInitSetup allinits
+          userCmdParts = mkUserCmd command allinits
+          runuserCmd = "env " ++ unwords (envParts ++ map shellQuote userCmdParts)
+          sudoers = "/etc/sudoers.d" </> progname
+          setup = "echo " ++ shellQuote (username ++ " ALL=(ALL) NOPASSWD:ALL")
+                  ++ " > " ++ sudoers
+                  ++ " && chmod 440 " ++ sudoers
+                  ++ initSetup
+                  ++ " && exec runuser -u " ++ username ++ " -- " ++ runuserCmd
+
+      mounts <- mapM addSelinuxLabel volumes
+
+      let workdirPart =
+            case mprojectDir of
+              Just d -> ["--workdir", rootDest d]
+              Nothing ->
+                case mhomeDir of
+                  Just _ -> ["--workdir", home]
+                  Nothing -> []
+          cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
+                 "--name", container,
+                 "--user", "root", "-e", "HOME=" ++ home]
+                ++ workdirPart
+                ++ (if readonly
+                    then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
+                    else [])
+                ++ (if nonetwork then ["--net", "none"] else [])
+                ++ concatMap (\s -> ["--security-opt", s]) extraSecurityOpts
+                ++ concatMap (\m -> ["-v", m]) mounts
+                ++ concatMap (\e -> ["-e", e]) envVars
+                ++ [image, "sh", "-c", setup]
+
+      if dryrun
+        then putStrLn $ unwords (map shellQuote cmd)
+        else do
+          let cleanup = when delete $ removeImage image
+          flip finally cleanup $ do
+            ret <- rawSystem "podman" (drop 1 cmd)
+            exitWith ret
 
 -- image management
 
