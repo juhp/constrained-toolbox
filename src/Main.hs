@@ -29,7 +29,7 @@ import Paths_constrained_toolbox (version)
 progname :: String
 progname = "constrained-toolbox"
 
-data Mode = Caps | DeleteImage | Run
+data Mode = Caps | DeleteImage | Run | Stop
   deriving Eq
 
 data Opts = Opts
@@ -67,7 +67,8 @@ main =
   <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
   <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home")
   <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
-       flagLongWith Run DeleteImage "delete-image" "Remove the image")
+       flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
+       flagLongWith Run Stop "stop" "Stop the container")
   <*> switchLongWith "ephemeral" "Remove the container after exiting"
   <*> switchLongWith "readonly" "Make the container filesystem read-only"
   <*> switchLongWith "no-network" "Disable network access"
@@ -88,6 +89,8 @@ run (Opts {..})
           mapM_ (putStrLn . ("  " ++) . T.unpack) $ Map.keys capabilities
   | mode == DeleteImage =
       removeImage (progname ++ "-" ++ toolbox)
+  | mode == Stop =
+      cmdSilent "podman" ["stop", progname ++ "-" ++ toolbox]
   | otherwise = do
   container <-
     if unique

@@ -8,6 +8,7 @@
 - change `--delete` to `--delete-image` standalone command
 - add `--ephemeral`, restart stopped containers
 - error for unused options when joining running container
+- add --stop command
 
 ## 0.1 (2026-07-03)
 - initial release with `--delete` and `--project` options

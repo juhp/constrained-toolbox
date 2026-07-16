@@ -64,9 +64,9 @@ Usage: constrained-toolbox [--version] [TOOLBOX]
                            [-v|--volume HOST:CONTAINER[:opts]]
                            [-e|--env KEY[=VALUE]] [-P|--path DIR]
                            [-i|--init CMD] [--cap NAME] [-p|--project DIR]
-                           [--home DIR] [--caps | --delete-image] [--ephemeral]
-                           [--readonly] [--no-network] [--unique] [--dryrun]
-                           [--refresh] [CMD]
+                           [--home DIR] [--caps | --delete-image | --stop]
+                           [--ephemeral] [--readonly] [--no-network] [--unique]
+                           [--dryrun] [--refresh] [CMD]
 
   Run a toolbox image in an isolated podman container
 
@@ -83,6 +83,7 @@ Available options:
   --home DIR               Mount a directory as a writable home
   --caps                   List available capabilities from the config file
   --delete-image           Remove the image
+  --stop                   Stop the container
   --ephemeral              Remove the container after exiting
   --readonly               Make the container filesystem read-only
   --no-network             Disable network access
