@@ -154,6 +154,8 @@ run (Opts {..}) =
           setup = "echo " ++ shellQuote (username ++ " ALL=(ALL) NOPASSWD:ALL")
                   ++ " > " ++ sudoers
                   ++ " && chmod 440 " ++ sudoers
+                  ++ " && mkdir -p " ++ shellQuote home
+                  ++ " && chown " ++ username ++ " " ++ shellQuote home
                   ++ initSetup
                   ++ " && exec runuser -u " ++ username ++ " -- " ++ runuserCmd
 
@@ -172,6 +174,9 @@ run (Opts {..}) =
                 ++ workdirPart
                 ++ (if readonly
                     then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
+                         ++ case mhomeDir of
+                              Nothing -> ["--tmpfs", home]
+                              Just _ -> []
                     else [])
                 ++ (if nonetwork then ["--net", "none"] else [])
                 ++ concatMap (\s -> ["--security-opt", s]) extraSecurityOpts
