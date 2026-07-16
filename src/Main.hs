@@ -177,15 +177,15 @@ run (Opts {..})
       let envParts = ("HOME=" ++ shellQuote home) : pathEnvPart allpaths
           initSetup = mkInitSetup allinits
           userCmdParts = mkUserCmd command allinits
-          runuserCmd = "env " ++ unwords (envParts ++ map shellQuote userCmdParts)
+          runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
           sudoers = "/etc/sudoers.d" </> progname
-          setup = "echo " ++ shellQuote (username ++ " ALL=(ALL) NOPASSWD:ALL")
-                  ++ " > " ++ sudoers
-                  ++ " && chmod 440 " ++ sudoers
-                  ++ " && mkdir -p " ++ shellQuote home
-                  ++ " && chown " ++ username ++ " " ++ shellQuote home
+          setup = "echo" +-+ shellQuote (username +-+ "ALL=(ALL) NOPASSWD:ALL")
+                  +-+ ">" +-+ sudoers
+                  +-+ "&& chmod 440" +-+ sudoers
+                  +-+ "&& mkdir -p" +-+ shellQuote home
+                  +-+ "&& chown" +-+ username +-+ shellQuote home
                   ++ initSetup
-                  ++ " && exec runuser -u " ++ username ++ " -- " ++ runuserCmd
+                  +-+ "&& exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd
 
       mounts <- mapM addSelinuxLabel volumes
 
@@ -236,7 +236,7 @@ commitToolbox toolbox refresh = do
       if ok
         then return image
         else error' $ "could not commit toolbox container '"
-             ++ toolbox ++ "': " ++ err
+             ++ toolbox ++ "':" +-+ err
 
 removeImage :: String -> IO ()
 removeImage image = cmdSilent "podman" ["rmi", image]
@@ -257,7 +257,7 @@ loadConfig = do
     else do
       result <- decodeFile path
       case result of
-        Left e -> error' $ "config parse error: " ++ T.unpack (renderTOMLError e)
+        Left e -> error' $ "config parse error:" +-+ T.unpack (renderTOMLError e)
         Right table -> return (Just table)
 
 getCapabilities :: Maybe Table -> Table
@@ -292,7 +292,7 @@ resolveCap caps name =
       let available = if Map.null caps
                       then "(none defined)"
                       else intercalate ", " $ map T.unpack $ Map.keys caps
-      error' $ "unknown capability '" ++ name ++ "'. Available: " ++ available
+      error' $ "unknown capability '" ++ name ++ "'. Available:" +-+ available
 
 getStringList :: String -> Table -> [String]
 getStringList key table =
@@ -405,7 +405,7 @@ mkInitSetup :: [String] -> String
 mkInitSetup [] = ""
 mkInitSetup snippets =
   let content = intercalate "\\n" snippets
-  in " && printf " ++ shellQuote content ++ " > /tmp" </> progname ++ "-init.sh"
+  in " && printf" +-+ shellQuote content +-+ "> /tmp" </> progname ++ "-init.sh"
 
 mkUserCmd :: [String] -> [String] -> [String]
 mkUserCmd [] inits = mkUserCmd ["bash"] inits
@@ -413,7 +413,7 @@ mkUserCmd ["bash"] (_:_) =
   ["bash", "--rcfile", "/tmp" </> progname ++ "-init.sh"]
 mkUserCmd cmd inits@(_:_) =
   let initChain = intercalate " && " inits
-      cmdStr = initChain ++ " && exec " ++ unwords (map shellQuote cmd)
+      cmdStr = initChain +-+ "&& exec" +-+ unwords (map shellQuote cmd)
   in ["sh", "-c", cmdStr]
 mkUserCmd cmd [] = cmd
 
