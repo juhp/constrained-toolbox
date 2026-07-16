@@ -9,7 +9,7 @@ import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
-import System.Directory (canonicalizePath, doesFileExist, doesPathExist, getHomeDirectory)
+import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
 import System.FilePath ((</>), takeFileName)
 import System.Posix.Process (getProcessID)
 import System.Posix.Env (getEnvDefault)
@@ -40,6 +40,7 @@ main =
   <*> many (strOptionWith 'i' "init" "CMD" "Run a bash snippet before entering the container")
   <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
   <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
+  <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home")
   <*> switchLongWith "caps" "List available capabilities from the config file"
   <*> switchLongWith "readonly" "Make the container filesystem read-only"
   <*> switchLongWith "no-network" "Disable network access"
@@ -49,8 +50,8 @@ main =
   <*> many (argumentWith str "CMD")
 
 run :: Maybe String -> [String] -> [String] -> [String] -> [String] -> [String]
-    -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
-run mtoolbox vols envs paths inits caps mproject listcaps readonly nonetwork dryrun refresh delete command =
+    -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
+run mtoolbox vols envs paths inits caps mproject mhome listcaps readonly nonetwork dryrun refresh delete command =
   if listcaps
     then do
       config <- loadConfig
@@ -69,6 +70,10 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly nonetwork dry
     case mproject of
       Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
       Nothing -> return Nothing
+  mhomeDir <-
+    case mhome of
+      Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
+      Nothing -> return Nothing
   image <- commitToolbox toolbox refresh delete
   config <- loadConfig
   let capabilities = getCapabilities config
@@ -76,17 +81,24 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly nonetwork dry
   (extraVols, extraEnvs, extraPaths, extraInits, extraSecurityOpts) <-
     resolveCapabilities capabilities caps
 
+  home <- getHomeDirectory
+  username <- getEffectiveUserName
+
+  homeVol <-
+    case mhomeDir of
+      Just d -> do
+        createDirectoryIfMissing True d
+        return [d ++ ":" ++ home]
+      Nothing -> return []
+
   let projectVol =
         case mprojectDir of
           Just d -> [d ++ ":" ++ rootDest d]
           Nothing -> []
-      volumes = vols ++ extraVols ++ projectVol
+      volumes = homeVol ++ vols ++ extraVols ++ projectVol
       envVars = envs ++ extraEnvs
       allpaths = paths ++ extraPaths
       allinits = inits ++ extraInits
-
-  home <- getHomeDirectory
-  username <- getEffectiveUserName
 
   let envParts = ("HOME=" ++ shellQuote home) : pathEnvPart allpaths
       initSetup = mkInitSetup allinits
@@ -104,7 +116,10 @@ run mtoolbox vols envs paths inits caps mproject listcaps readonly nonetwork dry
   let workdirPart =
         case mprojectDir of
           Just d -> ["--workdir", rootDest d]
-          Nothing -> []
+          Nothing ->
+            case mhomeDir of
+              Just _ -> ["--workdir", home]
+              Nothing -> []
       cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
              "--user", "root", "-e", "HOME=" ++ home]
             ++ workdirPart
