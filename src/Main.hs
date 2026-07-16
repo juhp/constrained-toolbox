@@ -44,14 +44,15 @@ main =
   <*> switchLongWith "caps" "List available capabilities from the config file"
   <*> switchLongWith "readonly" "Make the container filesystem read-only"
   <*> switchLongWith "no-network" "Disable network access"
+  <*> switchLongWith "unique" "Run a new container even if one is already running"
   <*> switchLongWith "dryrun" "Print the podman command instead of running it"
   <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
   <*> switchLongWith "delete" "Remove the committed image after running"
   <*> many (argumentWith str "CMD")
 
 run :: Maybe String -> [String] -> [String] -> [String] -> [String] -> [String]
-    -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
-run mtoolbox vols envs paths inits caps mproject mhome listcaps readonly nonetwork dryrun refresh delete command =
+    -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
+run mtoolbox vols envs paths inits caps mproject mhome listcaps readonly nonetwork unique dryrun refresh delete command =
   if listcaps
     then do
       config <- loadConfig
@@ -66,8 +67,16 @@ run mtoolbox vols envs paths inits caps mproject mhome listcaps readonly nonetwo
         case mtoolbox of
           Just t -> t
           Nothing -> error' "TOOLBOX argument required"
-      container = progname ++ "-" ++ toolbox
-  running <- cmdBool "podman" ["container", "exists", container]
+  container <-
+    if unique
+    then do
+      pid <- getProcessID
+      return $ progname ++ "-" ++ toolbox ++ "-" ++ show pid
+    else return $ progname ++ "-" ++ toolbox
+  running <-
+    if unique
+    then return False
+    else cmdBool "podman" ["container", "exists", container]
   if running
     then do
       home <- getHomeDirectory
