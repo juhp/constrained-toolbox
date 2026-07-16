@@ -164,10 +164,7 @@ run (Opts {..}) =
       let workdirPart =
             case mprojectDir of
               Just d -> ["--workdir", rootDest d]
-              Nothing ->
-                case mhomeDir of
-                  Just _ -> ["--workdir", home]
-                  Nothing -> []
+              Nothing -> ["--workdir", home]
           cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
                  "--name", container,
                  "--user", "root", "-e", "HOME=" ++ home]
