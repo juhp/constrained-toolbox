@@ -25,6 +25,9 @@ $ constrained-toolbox my-toolbox -p .
 # Bind mount a volume
 $ constrained-toolbox my-toolbox -v ~/data:/data
 
+# Mount a "home" directory
+$ constrained-toolbox my-toolbox --home /tmp/somedir
+
 # Use capabilities from config
 $ constrained-toolbox my-toolbox --cap ssh --cap git
 
@@ -49,7 +52,7 @@ $ constrained-toolbox my-toolbox --dryrun
 `$ constrained-toolbox --version`
 
 ```
-0.1
+0.2
 ```
 
 `$ constrained-toolbox --help`
@@ -57,12 +60,12 @@ $ constrained-toolbox my-toolbox --dryrun
 ```
 constrained-toolbox
 
-Usage: constrained-toolbox [--version] [TOOLBOX]
-                           [-v|--volume HOST:CONTAINER[:opts]]
-                           [-e|--env KEY[=VALUE]] [-P|--path DIR]
-                           [-i|--init CMD] [--cap NAME] [-p|--project DIR]
-                           [--caps] [--readonly] [--dryrun] [--refresh]
-                           [--delete] [CMD]
+Usage: constrained-toolbox [--version] [TOOLBOX] 
+                           [-v|--volume HOST:CONTAINER[:opts]] 
+                           [-e|--env KEY[=VALUE]] [-P|--path DIR] 
+                           [-i|--init CMD] [--cap NAME] [-p|--project DIR] 
+                           [--home DIR] [--caps] [--readonly] [--no-network] 
+                           [--unique] [--dryrun] [--refresh] [--delete] [CMD]
 
   Run a toolbox image in an isolated podman container
 
@@ -76,8 +79,11 @@ Available options:
   -i,--init CMD            Run a bash snippet before entering the container
   --cap NAME               Enable a capability from the config file
   -p,--project DIR         Mount a project directory and set as workdir
+  --home DIR               Mount a directory as a writable home
   --caps                   List available capabilities from the config file
   --readonly               Make the container filesystem read-only
+  --no-network             Disable network access
+  --unique                 Run a new container even if one is already running
   --dryrun                 Print the podman command instead of running it
   --refresh                Force re-commit of the toolbox image
   --delete                 Remove the committed image after running

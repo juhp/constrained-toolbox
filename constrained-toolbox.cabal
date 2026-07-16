@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                constrained-toolbox
-version:             0.1
+version:             0.2
 synopsis:            Run isolated toolbox containers with podman
 description:
         This tool (originally based on the toolbox-constrained project)

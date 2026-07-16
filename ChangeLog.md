@@ -1,5 +1,10 @@
 # constrained-toolbox releases
 
+## 0.2 (2026-07-16)
+- add `--home` option to mount a directory as a writable home
+- name the container and exec into it if already running
+- add `--unique` option to run a separate container instance
+
 ## 0.1 (2026-07-03)
 - initial release with `--delete` and `--project` options
 - defaults to :z shared bind mounts
