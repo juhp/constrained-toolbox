@@ -1,5 +1,8 @@
 -- SPDX-License-Identifier: Apache-2.0
 
+{-# LANGUAGE RecordWildCards #-}
+
+
 module Main (main) where
 
 import Control.Exception (finally)
@@ -27,12 +30,32 @@ import Paths_constrained_toolbox (version)
 progname :: String
 progname = "constrained-toolbox"
 
+data Opts = Opts
+  { mtoolbox :: Maybe String
+  , vols :: [String]
+  , envs :: [String]
+  , paths :: [String]
+  , inits :: [String]
+  , caps :: [String]
+  , mproject :: Maybe FilePath
+  , mhome :: Maybe FilePath
+  , listcaps :: Bool
+  , readonly :: Bool
+  , nonetwork :: Bool
+  , unique :: Bool
+  , dryrun :: Bool
+  , refresh :: Bool
+  , delete :: Bool
+  , command :: [String]
+  }
+
 main :: IO ()
 main =
   simpleCmdArgs (Just version)
   "constrained-toolbox"
   "Run a toolbox image in an isolated podman container" $
-  run
+  run <$>
+  (Opts
   <$> optional (argumentWith str "TOOLBOX")
   <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
   <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variables")
@@ -48,11 +71,10 @@ main =
   <*> switchLongWith "dryrun" "Print the podman command instead of running it"
   <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
   <*> switchLongWith "delete" "Remove the committed image after running"
-  <*> many (argumentWith str "CMD")
+  <*> many (argumentWith str "CMD"))
 
-run :: Maybe String -> [String] -> [String] -> [String] -> [String] -> [String]
-    -> Maybe String -> Maybe String -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> [String] -> IO ()
-run mtoolbox vols envs paths inits caps mproject mhome listcaps readonly nonetwork unique dryrun refresh delete command =
+run :: Opts -> IO ()
+run (Opts {..}) =
   if listcaps
     then do
       config <- loadConfig
