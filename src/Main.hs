@@ -5,12 +5,13 @@
 
 module Main (main) where
 
-import System.Exit (exitWith)
+import Control.Monad (unless)
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (isJust, mapMaybe)
+import Data.Maybe (isNothing, mapMaybe)
 import qualified Data.Text as T
 import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
+import System.Exit (exitWith)
 import System.FilePath ((</>), takeFileName)
 import System.Posix.Process (getProcessID)
 import System.Posix.Env (getEnvDefault)
@@ -18,7 +19,7 @@ import System.Posix.Files (getFileStatus, isSocket)
 import System.Posix.User (getEffectiveUserName)
 import System.Process (rawSystem)
 
-import SimpleCmd (cmdBool, cmdFull, cmdSilent, error')
+import SimpleCmd (cmdBool, cmdFull, cmdSilent, error', warning, (+-+))
 import SimpleCmdArgs
 
 import TOML (Value(..), Table, renderTOMLError, decodeFile)
@@ -111,28 +112,28 @@ run (Opts {..})
         else return False
   if running
     then do
-      let ignored = map snd $ filter fst
-            [ (not (null vols), "--volume")
-            , (not (null envs), "--env")
-            , (not (null paths), "--path")
-            , (not (null inits), "--init")
-            , (not (null caps), "--cap")
-            , (isJust mproject, "--project")
-            , (isJust mhome, "--home")
-            , (readonly, "--readonly")
-            , (nonetwork, "--no-network")
-            , (refresh, "--refresh")
-            , (not (null command), "CMD")
+      let noopts = and
+            [ null vols
+            , null envs
+            , null paths
+            , null inits
+            , null caps
+            , isNothing mproject
+            , isNothing mhome
+            , not ephemeral
+            , not readonly
+            , not nonetwork
+            , not refresh
             ]
-      if not (null ignored)
-        then putStrLn $ "Joining existing container (ignoring " ++
-             intercalate ", " ignored ++ ")"
-        else putStrLn "Joining existing container"
+      unless noopts $
+        error' $ "cannot give options for an existing container!"
+      warning $ "Joining existing container"
       home <- getHomeDirectory
       username <- getEffectiveUserName
-      let execCmd = ["podman", "exec", "-it", container,
+      let userCmd = if null command then ["bash"] else command
+          execCmd = ["podman", "exec", "-it", container,
                      "runuser", "-u", username, "--",
-                     "env", "HOME=" ++ home, "bash"]
+                     "env", "HOME=" ++ home] ++ userCmd
       if dryrun
         then putStrLn $ unwords (map shellQuote execCmd)
         else do

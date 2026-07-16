@@ -7,6 +7,7 @@
 - make home directory writable and workdir by default
 - change `--delete` to `--delete-image` standalone command
 - add `--ephemeral`, restart stopped containers
+- error for unused options when joining running container
 
 ## 0.1 (2026-07-03)
 - initial release with `--delete` and `--project` options
