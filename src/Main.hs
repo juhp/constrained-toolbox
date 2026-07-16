@@ -162,7 +162,7 @@ run (Opts {..})
             case mprojectDir of
               Just d -> ["--workdir", rootDest d]
               Nothing -> ["--workdir", home]
-          cmd = ["podman", "run", "--rm", "-it", "--userns=keep-id",
+          args = ["run", "--rm", "-it", "--userns=keep-id",
                  "--name", container,
                  "--user", "root", "-e", "HOME=" ++ home]
                 ++ workdirPart
@@ -179,9 +179,9 @@ run (Opts {..})
                 ++ [image, "sh", "-c", setup]
 
       if dryrun
-        then putStrLn $ unwords (map shellQuote cmd)
+        then putStrLn $ unwords $ "podman" : map shellQuote args
         else do
-          ret <- rawSystem "podman" (drop 1 cmd)
+          ret <- rawSystem "podman" args
           exitWith ret
   where
     toolbox =
