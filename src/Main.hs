@@ -8,7 +8,7 @@ module Main (main) where
 import System.Exit (exitWith)
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (mapMaybe)
+import Data.Maybe (isJust, mapMaybe)
 import qualified Data.Text as T
 import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
 import System.FilePath ((</>), takeFileName)
@@ -41,6 +41,7 @@ data Opts = Opts
   , mproject :: Maybe FilePath
   , mhome :: Maybe FilePath
   , mode :: Mode
+  , ephemeral :: Bool
   , readonly :: Bool
   , nonetwork :: Bool
   , unique :: Bool
@@ -66,6 +67,7 @@ main =
   <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home")
   <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
        flagLongWith Run DeleteImage "delete-image" "Remove the image")
+  <*> switchLongWith "ephemeral" "Remove the container after exiting"
   <*> switchLongWith "readonly" "Make the container filesystem read-only"
   <*> switchLongWith "no-network" "Disable network access"
   <*> switchLongWith "unique" "Run a new container even if one is already running"
@@ -95,9 +97,37 @@ run (Opts {..})
   running <-
     if unique
     then return False
-    else cmdBool "podman" ["container", "exists", container]
+    else do
+      exists <- cmdBool "podman" ["container", "exists", container]
+      if exists
+        then do
+          (_, out, _) <- cmdFull "podman"
+            ["container", "inspect", "-f", "{{.State.Running}}", container] ""
+          if take 4 out == "true"
+            then return True
+            else do
+              cmdSilent "podman" ["start", container]
+              return True
+        else return False
   if running
     then do
+      let ignored = map snd $ filter fst
+            [ (not (null vols), "--volume")
+            , (not (null envs), "--env")
+            , (not (null paths), "--path")
+            , (not (null inits), "--init")
+            , (not (null caps), "--cap")
+            , (isJust mproject, "--project")
+            , (isJust mhome, "--home")
+            , (readonly, "--readonly")
+            , (nonetwork, "--no-network")
+            , (refresh, "--refresh")
+            , (not (null command), "CMD")
+            ]
+      if not (null ignored)
+        then putStrLn $ "Joining existing container (ignoring " ++
+             intercalate ", " ignored ++ ")"
+        else putStrLn "Joining existing container"
       home <- getHomeDirectory
       username <- getEffectiveUserName
       let execCmd = ["podman", "exec", "-it", container,
@@ -162,7 +192,9 @@ run (Opts {..})
             case mprojectDir of
               Just d -> ["--workdir", rootDest d]
               Nothing -> ["--workdir", home]
-          args = ["run", "--rm", "-it", "--userns=keep-id",
+          args = "run" :
+                 [ "--rm" | ephemeral] ++
+                 [ "-it", "--userns=keep-id",
                  "--name", container,
                  "--user", "root", "-e", "HOME=" ++ home]
                 ++ workdirPart
