@@ -152,8 +152,8 @@ run (Opts {..})
             , not refresh
             ]
       unless noopts $
-        error' $ "cannot give options for an existing container!"
-      warning $ "Joining existing container"
+        error' "cannot give options for an existing container!"
+      warning "Joining existing container"
       home <- getHomeDirectory
       username <- getEffectiveUserName
       let userCmd = if null command then ["bash"] else command
