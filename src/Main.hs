@@ -65,7 +65,7 @@ main =
   <*> many (strOptionWith 'i' "init" "CMD" "Run a bash snippet before entering the container")
   <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
   <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
-  <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home")
+  <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
   <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
        flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
        flagLongWith Run Stop "stop" "Stop the container")

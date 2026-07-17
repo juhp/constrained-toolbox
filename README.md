@@ -25,7 +25,7 @@ $ constrained-toolbox my-toolbox -p .
 # Bind mount a volume
 $ constrained-toolbox my-toolbox -v ~/data:/data
 
-# Mount a "home" directory
+# Mount a "home" directory (created if it doesn't exist)
 $ constrained-toolbox my-toolbox --home /tmp/somedir
 
 # Use capabilities from config
