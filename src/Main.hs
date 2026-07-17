@@ -6,6 +6,7 @@
 module Main (main) where
 
 import Control.Monad (unless, when)
+import System.IO (BufferMode(NoBuffering), hSetBuffering, stdout)
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isNothing, mapMaybe)
@@ -52,31 +53,32 @@ data Opts = Opts
   }
 
 main :: IO ()
-main =
+main = do
+  hSetBuffering stdout NoBuffering
   simpleCmdArgs (Just version)
-  "constrained-toolbox"
-  "Run a toolbox image in an isolated podman container" $
-  run <$>
-  (Opts
-  <$> optional (argumentWith str "TOOLBOX")
-  <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
-  <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variables")
-  <*> many (strOptionWith 'P' "path" "DIR" "Prepend a directory to PATH inside the container")
-  <*> many (strOptionWith 'i' "init" "CMD" "Run a bash snippet before entering the container")
-  <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
-  <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
-  <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
-  <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
-       flagLongWith' Remove "remove" "Remove the container" <|>
-       flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
-       flagLongWith Run Stop "stop" "Stop the container")
-  <*> switchLongWith "persistent" "Keep the container after exiting"
-  <*> switchLongWith "readonly" "Make the container filesystem read-only"
-  <*> switchLongWith "no-network" "Disable network access"
-  <*> switchLongWith "unique" "Run a new container even if one is already running"
-  <*> switchLongWith "dryrun" "Print the podman command instead of running it"
-  <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
-  <*> many (argumentWith str "CMD"))
+    "constrained-toolbox"
+    "Run a toolbox image in an isolated podman container" $
+    run <$>
+    (Opts
+    <$> optional (argumentWith str "TOOLBOX")
+    <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
+    <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variables")
+    <*> many (strOptionWith 'P' "path" "DIR" "Prepend a directory to PATH inside the container")
+    <*> many (strOptionWith 'i' "init" "CMD" "Run a bash snippet before entering the container")
+    <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
+    <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
+    <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
+    <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
+         flagLongWith' Remove "remove" "Remove the container" <|>
+         flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
+         flagLongWith Run Stop "stop" "Stop the container")
+    <*> switchLongWith "persistent" "Keep the container after exiting"
+    <*> switchLongWith "readonly" "Make the container filesystem read-only"
+    <*> switchLongWith "no-network" "Disable network access"
+    <*> switchLongWith "unique" "Run a new container even if one is already running"
+    <*> switchLongWith "dryrun" "Print the podman command instead of running it"
+    <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
+    <*> many (argumentWith str "CMD"))
 
 run :: Opts -> IO ()
 run (Opts {..})
