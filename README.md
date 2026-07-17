@@ -64,8 +64,8 @@ constrained-toolbox
 Usage: constrained-toolbox [--version] [TOOLBOX]
                            [-v|--volume HOST:CONTAINER[:opts]]
                            [-e|--env KEY[=VALUE]] [-P|--path DIR]
-                           [-i|--init CMD] [--cap NAME] [-p|--project DIR]
-                           [--home DIR]
+                           [-i|--init CMD] [--cap NAME] [--home DIR]
+                           [-p|--project DIR]
                            [--caps | --remove | --delete-image | --stop]
                            [--persistent] [--readonly] [--no-network] [--unique]
                            [--dryrun] [--refresh] [CMD]
@@ -81,9 +81,9 @@ Available options:
   -P,--path DIR            Prepend a directory to PATH inside the container
   -i,--init CMD            Run a bash snippet before entering the container
   --cap NAME               Enable a capability from the config file
-  -p,--project DIR         Mount a project directory and set as workdir
   --home DIR               Mount a directory as a writable home (created if
                            missing)
+  -p,--project DIR         Mount a project directory and set as workdir
   --caps                   List available capabilities from the config file
   --remove                 Remove the container
   --delete-image           Remove the image

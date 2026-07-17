@@ -40,8 +40,8 @@ data Opts = Opts
   , paths :: [String]
   , inits :: [String]
   , caps :: [String]
-  , mproject :: Maybe FilePath
   , mhome :: Maybe FilePath
+  , mproject :: Maybe FilePath
   , mode :: Mode
   , persistent :: Bool
   , readonly :: Bool
@@ -66,8 +66,8 @@ main = do
     <*> many (strOptionWith 'P' "path" "DIR" "Prepend a directory to PATH inside the container")
     <*> many (strOptionWith 'i' "init" "CMD" "Run a bash snippet before entering the container")
     <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
-    <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
     <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
+    <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
     <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
          flagLongWith' Remove "remove" "Remove the container" <|>
          flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
