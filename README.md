@@ -48,6 +48,8 @@ $ constrained-toolbox my-toolbox -- ls /
 $ constrained-toolbox my-toolbox --dryrun
 ```
 
+Containers are ephemeral by default: use `--permanent` to create a long lived container to keep around.
+
 ### Usage
 
 `$ constrained-toolbox --version`
