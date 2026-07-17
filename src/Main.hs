@@ -206,10 +206,13 @@ run (Opts {..})
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
           sudoers = "/etc/sudoers.d" </> progname
           setup = "echo" +-+ shellQuote (username +-+ "ALL=(ALL) NOPASSWD:ALL")
-                  +-+ ">" +-+ sudoers
-                  +-+ "&& chmod 440" +-+ sudoers
-                  +-+ "&& mkdir -p" +-+ shellQuote home
-                  +-+ "&& chown" +-+ username +-+ shellQuote home
+                  +-+ ">" +-+ sudoers +-+
+                  "&& chmod 440" +-+ sudoers +-+
+                  (if isNothing mhome
+                  then
+                    "&& mkdir -p" +-+ shellQuote home +-+
+                    "&& chown" +-+ username +-+ shellQuote home
+                  else "")
                   ++ initSetup
                   +-+ "&& exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd
 
