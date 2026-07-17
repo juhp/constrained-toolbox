@@ -19,7 +19,7 @@ import System.Posix.Files (getFileStatus, isSocket)
 import System.Posix.User (getEffectiveUserName)
 import System.Process (rawSystem)
 
-import SimpleCmd (cmdBool, cmdFull, cmdSilent, error', warning, (+-+))
+import SimpleCmd (cmd_, cmdBool, cmdFull, error', warning, (+-+))
 import SimpleCmdArgs
 
 import TOML (Value(..), Table, renderTOMLError, decodeFile)
@@ -89,8 +89,9 @@ run (Opts {..})
           mapM_ (putStrLn . ("  " ++) . T.unpack) $ Map.keys capabilities
   | mode == DeleteImage =
       removeImage (progname ++ "-" ++ toolbox)
-  | mode == Stop =
-      cmdSilent "podman" ["stop", progname ++ "-" ++ toolbox]
+  | mode == Stop = do
+      putStr "stop "
+      cmd_ "podman" ["stop", progname ++ "-" ++ toolbox]
   | otherwise = do
   container <-
     if unique
@@ -110,8 +111,9 @@ run (Opts {..})
           if take 4 out == "true"
             then return True
             else do
-              cmdSilent "podman" ["start", container]
-              return True
+            putStr "start "
+            cmd_ "podman" ["start", container]
+            return True
         else return False
   if running
     then do
@@ -242,7 +244,9 @@ commitToolbox toolbox refresh = do
              ++ toolbox ++ "':" +-+ err
 
 removeImage :: String -> IO ()
-removeImage image = cmdSilent "podman" ["rmi", image]
+removeImage image = do
+  putStr "rmi "
+  cmd_ "podman" ["rmi", image]
 
 -- config
 
