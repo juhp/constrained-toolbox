@@ -42,7 +42,7 @@ data Opts = Opts
   , mproject :: Maybe FilePath
   , mhome :: Maybe FilePath
   , mode :: Mode
-  , ephemeral :: Bool
+  , persistent :: Bool
   , readonly :: Bool
   , nonetwork :: Bool
   , unique :: Bool
@@ -70,7 +70,7 @@ main =
        flagLongWith' Remove "remove" "Remove the container" <|>
        flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
        flagLongWith Run Stop "stop" "Stop the container")
-  <*> switchLongWith "ephemeral" "Remove the container after exiting"
+  <*> switchLongWith "persistent" "Keep the container after exiting"
   <*> switchLongWith "readonly" "Make the container filesystem read-only"
   <*> switchLongWith "no-network" "Disable network access"
   <*> switchLongWith "unique" "Run a new container even if one is already running"
@@ -144,7 +144,7 @@ run (Opts {..})
             , null caps
             , isNothing mproject
             , isNothing mhome
-            , not ephemeral
+            , not persistent
             , not readonly
             , not nonetwork
             , not refresh
@@ -218,7 +218,7 @@ run (Opts {..})
               Just d -> ["--workdir", rootDest d]
               Nothing -> ["--workdir", home]
           args = "run" :
-                 [ "--rm" | ephemeral] ++
+                 [ "--rm" | not persistent] ++
                  [ "-it", "--userns=keep-id",
                  "--name", container,
                  "--user", "root", "-e", "HOME=" ++ home]
