@@ -5,7 +5,7 @@
 
 module Main (main) where
 
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isNothing, mapMaybe)
@@ -29,7 +29,7 @@ import Paths_constrained_toolbox (version)
 progname :: String
 progname = "constrained-toolbox"
 
-data Mode = Caps | DeleteImage | Run | Stop
+data Mode = Caps | DeleteImage | Remove | Run | Stop
   deriving Eq
 
 data Opts = Opts
@@ -67,6 +67,7 @@ main =
   <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
   <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
   <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
+       flagLongWith' Remove "remove" "Remove the container" <|>
        flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
        flagLongWith Run Stop "stop" "Stop the container")
   <*> switchLongWith "ephemeral" "Remove the container after exiting"
@@ -89,6 +90,15 @@ run (Opts {..})
           mapM_ (putStrLn . ("  " ++) . T.unpack) $ Map.keys capabilities
   | mode == DeleteImage =
       removeImage (progname ++ "-" ++ toolbox)
+  | mode == Remove = do
+      let container = progname ++ "-" ++ toolbox
+      (_, out, _) <- cmdFull "podman"
+        ["container", "inspect", "-f", "{{.State.Running}}", container] ""
+      when (take 4 out == "true") $ do
+        putStr "stopping "
+        cmd_ "podman" ["stop", container]
+      putStr "rm "
+      cmd_ "podman" ["rm", container]
   | mode == Stop = do
       putStr "stop "
       cmd_ "podman" ["stop", progname ++ "-" ++ toolbox]
