@@ -1,13 +1,13 @@
 cabal-version:       2.2
 name:                constrained-toolbox
-version:             0.2
+version:             0.2.1
 synopsis:            Run isolated toolbox containers with podman
 description:
         This tool (originally based on the toolbox-constrained project)
         allows running isolated toolbox containers with podman.
         Mounting of home and host integration are not enabled by default,
-        but one can choose to enable such capabilities specified in
-        a toml configuration file.
+        but one can choose to enable such options including capabilities
+        specified in a toml configuration file.
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Jens Petersen <juhpetersen@gmail.com>

@@ -5,7 +5,8 @@ A Haskell rewrite of the fine [toolbox-constrained](https://github.com/swick/too
 Run a [Toolbx](https://containertoolbx.org/) image in an isolated
 podman container. Unlike `toolbox enter`, this does *not* bind-mount
 your home directory or integrate with the host by default.
-You explicitly choose what "capabilities" the container can access.
+You explicitly choose what to enable and select user-configured "capabilities"
+the container can access.
 
 ```
 constrained-toolbox TOOLBOX [options] [CMD...]
@@ -34,7 +35,7 @@ $ constrained-toolbox my-toolbox --cap ssh --cap git
 # Read-only container filesystem
 $ constrained-toolbox my-toolbox --readonly
 
-# Remove the saved image after exit
+# Remove the saved image
 $ constrained-toolbox my-toolbox --delete
 
 # Set environment variables and prepend to PATH
@@ -52,7 +53,7 @@ $ constrained-toolbox my-toolbox --dryrun
 `$ constrained-toolbox --version`
 
 ```
-0.2
+0.2.1
 ```
 
 `$ constrained-toolbox --help`
@@ -64,8 +65,9 @@ Usage: constrained-toolbox [--version] [TOOLBOX]
                            [-v|--volume HOST:CONTAINER[:opts]]
                            [-e|--env KEY[=VALUE]] [-P|--path DIR]
                            [-i|--init CMD] [--cap NAME] [-p|--project DIR]
-                           [--home DIR] [--caps | --delete-image | --stop]
-                           [--ephemeral] [--readonly] [--no-network] [--unique]
+                           [--home DIR]
+                           [--caps | --remove | --delete-image | --stop]
+                           [--persistent] [--readonly] [--no-network] [--unique]
                            [--dryrun] [--refresh] [CMD]
 
   Run a toolbox image in an isolated podman container
@@ -80,11 +82,13 @@ Available options:
   -i,--init CMD            Run a bash snippet before entering the container
   --cap NAME               Enable a capability from the config file
   -p,--project DIR         Mount a project directory and set as workdir
-  --home DIR               Mount a directory as a writable home
+  --home DIR               Mount a directory as a writable home (created if
+                           missing)
   --caps                   List available capabilities from the config file
+  --remove                 Remove the container
   --delete-image           Remove the image
   --stop                   Stop the container
-  --ephemeral              Remove the container after exiting
+  --persistent             Keep the container after exiting
   --readonly               Make the container filesystem read-only
   --no-network             Disable network access
   --unique                 Run a new container even if one is already running
@@ -157,4 +161,4 @@ or `stack install`.
 
 I already mentioned [toolbox-constrained](https://github.com/swick/toolbox-constrained) which this project is derived from.
 
-There is also similarly [schupfn](https://github.com/whot/schupfn/) which uses qemu to run a toolbox container image in a VM with a direct private ssh connection.
+There is also similarly [schupfn](https://github.com/whot/schupfn/) which uses Qemu to run a toolbox container image in a VM with a direct private ssh connection.

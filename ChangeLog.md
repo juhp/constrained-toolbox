@@ -1,5 +1,10 @@
 # constrained-toolbox releases
 
+## 0.2.1 (2026-07-17)
+- add --delete container command
+- handle missing container gracefully in --stop and --remove
+- default to ephemeral containers again, use --persistent to keep
+
 ## 0.2 (2026-07-16)
 - add `--home` option to mount a directory as a writable home
 - name the container and exec into it if already running
