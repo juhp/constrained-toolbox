@@ -92,16 +92,25 @@ run (Opts {..})
       removeImage (progname ++ "-" ++ toolbox)
   | mode == Remove = do
       let container = progname ++ "-" ++ toolbox
-      (_, out, _) <- cmdFull "podman"
-        ["container", "inspect", "-f", "{{.State.Running}}", container] ""
-      when (take 4 out == "true") $ do
-        putStr "stopping "
-        cmd_ "podman" ["stop", container]
-      putStr "rm "
-      cmd_ "podman" ["rm", container]
+      exists <- cmdBool "podman" ["container", "exists", container]
+      if exists
+        then do
+          (_, out, _) <- cmdFull "podman"
+            ["container", "inspect", "-f", "{{.State.Running}}", container] ""
+          when (take 4 out == "true") $ do
+            putStr "stopping "
+            cmd_ "podman" ["stop", container]
+          putStr "rm "
+          cmd_ "podman" ["rm", container]
+        else warning $ "container" +-+ container +-+ "not found"
   | mode == Stop = do
-      putStr "stop "
-      cmd_ "podman" ["stop", progname ++ "-" ++ toolbox]
+      let container = progname ++ "-" ++ toolbox
+      exists <- cmdBool "podman" ["container", "exists", container]
+      if exists
+        then do
+          putStr "stop "
+          cmd_ "podman" ["stop", container]
+        else warning $ "container" +-+ container +-+ "not found"
   | otherwise = do
   container <-
     if unique
