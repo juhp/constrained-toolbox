@@ -72,7 +72,7 @@ main = do
          flagLongWith' Remove "remove" "Remove the container" <|>
          flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
          flagLongWith Run Stop "stop" "Stop the container")
-    <*> switchLongWith "persistent" "Keep the container after exiting"
+    <*> switchLongWith "keep" "Keep the container after exiting"
     <*> switchLongWith "readonly" "Make the container filesystem read-only"
     <*> switchLongWith "no-network" "Disable network access"
     <*> switchLongWith "unique" "Run a new container even if one is already running"
