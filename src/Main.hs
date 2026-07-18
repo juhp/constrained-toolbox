@@ -269,16 +269,20 @@ run (Opts {..})
 commitToolbox :: String -> Bool -> IO String
 commitToolbox toolbox refresh = do
   let image = progname ++ '-' : toolbox
-  exists <- cmdBool "podman" ["image", "exists", image]
-  if exists && not refresh
+  imageExists <- cmdBool "podman" ["image", "exists", image]
+  if imageExists && not refresh
     then return image
     else do
-      (ok, _, err) <- cmdFull "buildah"
-                      ["commit", "--disable-compression", toolbox, image] ""
-      if ok
-        then return image
-        else error' $ "could not commit toolbox container '"
-             ++ toolbox ++ "':" +-+ err
+      containerExists <- cmdBool "podman" ["container", "exists", toolbox]
+      if containerExists
+        then do
+          (ok, _, err) <- cmdFull "buildah"
+                          ["commit", "--disable-compression", toolbox, image] ""
+          if ok
+            then return image
+            else error' $ "could not commit toolbox container '"
+                 ++ toolbox ++ "':" +-+ err
+        else error' $ "toolbox container '" ++ toolbox ++ "' not found"
 
 removeImage :: String -> IO ()
 removeImage image = do
