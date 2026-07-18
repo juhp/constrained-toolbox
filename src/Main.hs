@@ -46,6 +46,7 @@ data Opts = Opts
   , persistent :: Bool
   , readonly :: Bool
   , nonetwork :: Bool
+  , nosudo :: Bool
   , unique :: Bool
   , dryrun :: Bool
   , refresh :: Bool
@@ -76,6 +77,7 @@ main = do
     <*> switchLongWith "keep" "Keep the container after exiting"
     <*> switchLongWith "readonly" "Make the container filesystem read-only"
     <*> switchLongWith "no-network" "Disable network access"
+    <*> switchLongWith "no-sudo" "Skip passwordless sudo setup"
     <*> switchLongWith "unique" "Run a new container even if one is already running"
     <*> switchLongWith "dryrun" "Print the podman command instead of running it"
     <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
@@ -154,6 +156,7 @@ run (Opts {..})
             , not persistent
             , not readonly
             , not nonetwork
+            , not nosudo
             , not refresh
             ]
       unless noopts $
@@ -210,16 +213,21 @@ run (Opts {..})
           userCmdParts = mkUserCmd command allinits
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
           sudoers = "/etc/sudoers.d" </> progname
-          setup = "echo" +-+ shellQuote (username +-+ "ALL=(ALL) NOPASSWD:ALL")
-                  +-+ ">" +-+ sudoers +-+
-                  "&& chmod 440" +-+ sudoers +-+
-                  (if isNothing mhome
-                  then
-                    "&& mkdir -p" +-+ shellQuote home +-+
-                    "&& chown" +-+ username +-+ shellQuote home
-                  else "")
-                  ++ initSetup
-                  +-+ "&& exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd
+          sudoSetup =
+            if nosudo
+            then ["rm -f /usr/bin/sudo"]
+            else ["echo" +-+ shellQuote (username +-+ "ALL=(ALL) NOPASSWD:ALL")
+                  +-+ ">" +-+ sudoers,
+                  "chmod 440" +-+ sudoers]
+          homeSetup =
+            if isNothing mhome
+            then ["mkdir -p" +-+ shellQuote home,
+                  "chown" +-+ username +-+ shellQuote home]
+            else []
+          setup = intercalate " && " $
+                  sudoSetup ++ homeSetup ++
+                  [initSetup | not (null allinits)] ++
+                  ["exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd]
 
       mounts <- mapM addSelinuxLabel volumes
 
@@ -441,7 +449,7 @@ mkInitSetup :: [String] -> String
 mkInitSetup [] = ""
 mkInitSetup snippets =
   let content = intercalate "\\n" snippets
-  in " && printf" +-+ shellQuote content +-+ "> /tmp" </> progname ++ "-init.sh"
+  in "printf" +-+ shellQuote content +-+ "> /tmp" </> progname ++ "-init.sh"
 
 mkUserCmd :: [String] -> [String] -> [String]
 mkUserCmd [] inits = mkUserCmd ["bash"] inits
