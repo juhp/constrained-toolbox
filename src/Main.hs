@@ -98,9 +98,9 @@ run (Opts {..})
                      "--filter", "name=^" ++ progname ++ "-",
                      "--format", "{{.Names}}  {{.Status}}"]
   | mode == DeleteImage =
-      removeImage (progname ++ "-" ++ toolbox)
+      removeImage (progname ++ "-" ++ containerBase)
   | mode == Remove = do
-      let container = progname ++ "-" ++ toolbox
+      let container = progname ++ "-" ++ containerBase
       exists <- cmdBool "podman" ["container", "exists", container]
       if exists
         then do
@@ -113,7 +113,7 @@ run (Opts {..})
           cmd_ "podman" ["rm", container]
         else warning $ "container" +-+ container +-+ "not found"
   | mode == Stop = do
-      let container = progname ++ "-" ++ toolbox
+      let container = progname ++ "-" ++ containerBase
       exists <- cmdBool "podman" ["container", "exists", container]
       if exists
         then do
@@ -125,8 +125,8 @@ run (Opts {..})
     if unique
     then do
       pid <- getProcessID
-      return $ progname ++ "-" ++ toolbox ++ "-" ++ show pid
-    else return $ progname ++ "-" ++ toolbox
+      return $ progname ++ "-" ++ containerBase ++ "-" ++ show pid
+    else return $ progname ++ "-" ++ containerBase
   running <-
     if unique
     then return False
@@ -182,7 +182,10 @@ run (Opts {..})
         case mhome of
           Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
           Nothing -> return Nothing
-      image <- commitToolbox toolbox refresh
+      let isImage = ':' `elem` toolbox
+      image <- if isImage
+               then return toolbox
+               else commitToolbox toolbox refresh
       config <- loadConfig
       let capabilities = getCapabilities config
 
@@ -234,12 +237,14 @@ run (Opts {..})
       let workdirPart =
             case mprojectDir of
               Just d -> ["--workdir", rootDest d]
-              Nothing -> ["--workdir", home]
+              Nothing | not isImage -> ["--workdir", home]
+                      | otherwise -> []
           args = "run" :
                  [ "--rm" | not persistent] ++
                  [ "-it", "--userns=keep-id",
-                 "--name", container,
-                 "--user", "root", "-e", "HOME=" ++ home]
+                 "--name", container]
+                ++ (if isImage then [] else ["--user", "root"])
+                ++ ["-e", "HOME=" ++ home]
                 ++ workdirPart
                 ++ (if readonly
                     then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
@@ -251,7 +256,9 @@ run (Opts {..})
                 ++ concatMap (\s -> ["--security-opt", s]) extraSecurityOpts
                 ++ concatMap (\m -> ["-v", m]) mounts
                 ++ concatMap (\e -> ["-e", e]) envVars
-                ++ [image, "sh", "-c", setup]
+                ++ if isImage
+                   then image : userCmdParts
+                   else [image, "sh", "-c", setup]
 
       if dryrun
         then putStrLn $ unwords $ "podman" : map shellQuote args
@@ -263,6 +270,8 @@ run (Opts {..})
       case mtoolbox of
         Just t -> t
         Nothing -> error' "TOOLBOX argument required"
+
+    containerBase = map (\c -> if c == ':' then '-' else c) toolbox
 
 -- image management
 
