@@ -106,6 +106,7 @@ run (Opts {..})
                      "--filter", "name=^" ++ progname ++ "-",
                      "--format", "{{.Names}}  {{.Status}}"]
   | mode == DeleteImage =
+      when dryrun $
       removeImage (progname ++ "-" ++ containerBase)
   | mode == Remove = do
       exists <- cmdBool "podman" ["container", "exists", containerName]
@@ -204,7 +205,7 @@ run (Opts {..})
               else "toolbox:" +-+ toolbox
       image <- if isImage
                then return toolbox
-               else commitToolbox toolbox refresh
+               else commitToolbox dryrun toolbox refresh
       config <- loadConfig
       let capabilities = getCapabilities config
 
@@ -309,8 +310,8 @@ run (Opts {..})
 
 -- image management
 
-commitToolbox :: String -> Bool -> IO String
-commitToolbox toolbox refresh = do
+commitToolbox :: Bool -> String -> Bool -> IO String
+commitToolbox dryrun toolbox refresh = do
   let image = progname ++ '-' : toolbox
   imageExists <- cmdBool "podman" ["image", "exists", image]
   if imageExists && not refresh
@@ -319,8 +320,11 @@ commitToolbox toolbox refresh = do
       containerExists <- cmdBool "podman" ["container", "exists", toolbox]
       if containerExists
         then do
-        putStr "writing image "
-        ok <- cmdBool "buildah"
+        ok <-
+          if dryrun then return True
+          else do
+            putStr "writing image "
+            cmdBool "buildah"
               ["commit", "--disable-compression", toolbox, image]
         if ok
           then return image
