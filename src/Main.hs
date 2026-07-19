@@ -73,7 +73,7 @@ main = do
     <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
     <*> optional (strOptionWith 'n' "name" "NAME" "Container name (for creating or joining)")
     <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
-         flagLongWith' List "list" "List envclave containers" <|>
+         flagLongWith' List "list" "List envclave images and containers" <|>
          flagLongWith' Remove "remove" "Remove the container" <|>
          flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
          flagLongWith Run Stop "stop" "Stop the container")
@@ -98,7 +98,10 @@ run (Opts {..})
         else do
           putStrLn "Available capabilities:"
           mapM_ (putStrLn . ("  " ++) . T.unpack) $ Map.keys capabilities
-  | mode == List =
+  | mode == List = do
+      cmd_ "podman" ["images",
+                     "--filter", "reference=" ++ progname ++ "-*",
+                     "--format", "{{.Repository}}  {{.Size}}  {{.Created}}"]
       cmd_ "podman" ["ps", "-a",
                      "--filter", "name=^" ++ progname ++ "-",
                      "--format", "{{.Names}}  {{.Status}}"]
