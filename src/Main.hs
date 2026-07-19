@@ -6,7 +6,6 @@
 module Main (main) where
 
 import Control.Monad (unless, when)
-import System.IO (BufferMode(NoBuffering), hSetBuffering, stdout)
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust, isNothing, mapMaybe)
@@ -14,6 +13,7 @@ import qualified Data.Text as T
 import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
 import System.Exit (exitWith)
 import System.FilePath ((</>), takeFileName)
+import System.IO (BufferMode(NoBuffering), hSetBuffering, stdout)
 import System.Posix.Process (getProcessID)
 import System.Posix.Env (getEnvDefault)
 import System.Posix.Files (getFileStatus, isSocket)
