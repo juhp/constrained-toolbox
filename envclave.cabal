@@ -1,5 +1,5 @@
 cabal-version:       2.2
-name:                constrained-toolbox
+name:                envclave
 version:             0.2.1
 synopsis:            Run isolated toolbox containers with podman
 description:
@@ -14,8 +14,8 @@ author:              Jens Petersen <juhpetersen@gmail.com>
 maintainer:          Jens Petersen <juhpetersen@gmail.com>
 copyright:           2026  Jens Petersen <juhpetersen@gmail.com>
 category:            Utility
-homepage:            https://github.com/juhp/constrained-toolbox
-bug-reports:         https://github.com/juhp/constrained-toolbox/issues
+homepage:            https://github.com/juhp/envclave
+bug-reports:         https://github.com/juhp/envclave/issues
 build-type:          Simple
 extra-doc-files:     README.md
                      ChangeLog.md
@@ -32,12 +32,12 @@ tested-with:         GHC == 8.10.7
 
 source-repository head
   type:                git
-  location:            https://github.com/juhp/constrained-toolbox.git
+  location:            https://github.com/juhp/envclave.git
 
-executable constrained-toolbox
+executable envclave
   main-is:             Main.hs
-  other-modules:       Paths_constrained_toolbox
-  autogen-modules:     Paths_constrained_toolbox
+  other-modules:       Paths_envclave
+  autogen-modules:     Paths_envclave
   hs-source-dirs:      src
   build-depends:       base < 5
                      , directory

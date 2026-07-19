@@ -1,15 +1,17 @@
-# constrained-toolbox
+# envclave
 
-A Haskell rewrite of the fine [toolbox-constrained](https://github.com/swick/toolbox-constrained) tool.
+CLI tool to run enclaved (isolated) developer containers that protect your home directory and host from container side effects.
+(An "envclave" is an enclaved container environment, where you control what is shared with the host.)
 
-Run a [Toolbx](https://containertoolbx.org/) image in an isolated
+Originally derived from [toolbox-constrained](https://github.com/swick/toolbox-constrained) tool.
+
+Run a [Toolbx](https://containertoolbx.org/) container or image in an isolated
 podman container. Unlike `toolbox enter`, this does *not* bind-mount
 your home directory or integrate with the host by default.
-You explicitly choose what to enable and select user-configured "capabilities"
-the container can access.
+You can explicitly choose what to enable and select user-configured "capabilities" the container can access.
 
 ```
-constrained-toolbox TOOLBOX [options] [CMD...]
+envclave TOOLBOX [options] [CMD...]
 ```
 
 The image is committed (saved) from the named toolbox container using buildah.
@@ -18,52 +20,52 @@ The image is committed (saved) from the named toolbox container using buildah.
 
 ```bash
 # Isolated shell, no host access
-$ constrained-toolbox my-toolbox
+$ envclave my-toolbox
 
 # Mount current (project) directory in / and set it as the working directory
-$ constrained-toolbox my-toolbox -p .
+$ envclave my-toolbox -p .
 
 # Bind mount a volume
-$ constrained-toolbox my-toolbox -v ~/data:/data
+$ envclave my-toolbox -v ~/data:/data
 
 # Mount a "home" directory (created if it doesn't exist)
-$ constrained-toolbox my-toolbox --home /tmp/somedir
+$ envclave my-toolbox --home /tmp/somedir
 
 # Use capabilities from config
-$ constrained-toolbox my-toolbox --cap ssh --cap git
+$ envclave my-toolbox --cap ssh --cap git
 
 # Read-only container filesystem
-$ constrained-toolbox my-toolbox --readonly
+$ envclave my-toolbox --readonly
 
 # Remove the saved image
-$ constrained-toolbox my-toolbox --delete
+$ envclave my-toolbox --delete
 
 # Set environment variables and prepend to PATH
-$ constrained-toolbox my-toolbox -e MY_VAR=hello -P ~/.local/bin
+$ envclave my-toolbox -e MY_VAR=hello -P ~/.local/bin
 
 # Run a specific command
-$ constrained-toolbox my-toolbox -- ls /
+$ envclave my-toolbox -- ls /
 
 # Dry run: print the podman command without running it
-$ constrained-toolbox my-toolbox --dryrun
+$ envclave my-toolbox --dryrun
 ```
 
 Containers are ephemeral by default: use `--permanent` to create a long lived container to keep around.
 
 ### Usage
 
-`$ constrained-toolbox --version`
+`$ envclave --version`
 
 ```
 0.2.1
 ```
 
-`$ constrained-toolbox --help`
+`$ envclave --help`
 
 ```
-constrained-toolbox
+envclave
 
-Usage: constrained-toolbox [--version] [TOOLBOX]
+Usage: envclave [--version] [TOOLBOX]
                            [-v|--volume HOST:CONTAINER[:opts]]
                            [-e|--env KEY[=VALUE]] [-P|--path DIR]
                            [-i|--init CMD] [--cap NAME] [--home DIR]
@@ -101,7 +103,7 @@ Available options:
 ## Capabilities
 
 Define reusable groups of volumes, environment variables, PATH entries,
-and init commands in `~/.config/constrained-toolbox/config.toml`:
+and init commands in `~/.config/envclave/config.toml`:
 
 ```toml
 [capabilities.ssh]
@@ -144,7 +146,7 @@ If the host and container paths are the same, you can use the shorthand
 
 A copr repo is available for Fedora and Epel 10:
 
-<https://copr.fedorainfracloud.org/coprs/petersen/constrained-toolbox/>
+<https://copr.fedorainfracloud.org/coprs/petersen/envclave/>
 
 ## Building from source
 

@@ -1,4 +1,7 @@
-# constrained-toolbox releases
+# envclave releases
+
+## 0.3
+- project renamed from constrained-toolbox
 
 ## 0.2.1 (2026-07-17)
 - add --delete container command
