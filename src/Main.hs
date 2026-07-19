@@ -234,9 +234,7 @@ run (Opts {..})
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
           sudoers = "/etc/sudoers.d" </> progname
           installSetup =
-            if isImage
-            then ["(command -v runuser >/dev/null 2>&1 || dnf install -y util-linux sudo >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 && apt-get install -y util-linux sudo >/dev/null 2>&1 || true)"]
-            else []
+            ["(command -v runuser >/dev/null 2>&1 || dnf install -y util-linux sudo >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 && apt-get install -y util-linux sudo >/dev/null 2>&1 || true)" | isImage]
           sudoSetup =
             if nosudo
             then ["rm -f /usr/bin/sudo"]
@@ -252,7 +250,7 @@ run (Opts {..})
             if isImage
             then " || exec" +-+ runuserCmd
             else ""
-          trace = if debugging then ["set -x"] else []
+          trace = ["set -x" | debugging]
           setup = intercalate " && "
                   (trace ++ installSetup ++ sudoSetup ++ homeSetup ++
                   [initSetup | not (null allinits)] ++
