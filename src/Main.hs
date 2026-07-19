@@ -48,6 +48,7 @@ data Opts = Opts
   , nonetwork :: Bool
   , nosudo :: Bool
   , unique :: Bool
+  , podmanopts :: [String]
   , dryrun :: Bool
   , refresh :: Bool
   , command :: [String]
@@ -79,6 +80,7 @@ main = do
     <*> switchLongWith "no-network" "Disable network access"
     <*> switchLongWith "no-sudo" "Skip passwordless sudo setup"
     <*> switchLongWith "unique" "Run a new container even if one is already running"
+    <*> many (strOptionLongWith "podman-opt" "OPTION" "Pass an option directly to podman")
     <*> switchLongWith "dryrun" "Print the podman command instead of running it"
     <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
     <*> many (argumentWith str "CMD"))
@@ -157,6 +159,7 @@ run (Opts {..})
             , not readonly
             , not nonetwork
             , not nosudo
+            , null podmanopts
             , not refresh
             ]
       unless noopts $
@@ -256,6 +259,7 @@ run (Opts {..})
                 ++ concatMap (\s -> ["--security-opt", s]) extraSecurityOpts
                 ++ concatMap (\m -> ["-v", m]) mounts
                 ++ concatMap (\e -> ["-e", e]) envVars
+                ++ podmanopts
                 ++ if isImage
                    then image : userCmdParts
                    else [image, "sh", "-c", setup]
