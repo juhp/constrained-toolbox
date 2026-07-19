@@ -164,3 +164,5 @@ or `stack install`.
 I already mentioned [toolbox-constrained](https://github.com/swick/toolbox-constrained) which this project is derived from.
 
 There is also similarly [schupfn](https://github.com/whot/schupfn/) which uses Qemu to run a toolbox container image in a VM with a direct private ssh connection.
+
+For stronger isolation, specially network, consider using [OpenShell](https://github.com/NVIDIA/OpenShell/).
