@@ -268,7 +268,8 @@ run (Opts {..})
                  [ "--rm" | not keep] ++
                  [ "-it", "--userns=keep-id",
                  "--name", container, "--hostname", container,
-                 "--user", "root", "-e", "HOME=" ++ home]
+                 "--user", "root", "-e", "HOME=" ++ home,
+                 "-e", "TERM", "-e", "COLORTERM"]
                 ++ workdirPart
                 ++ (if readonly
                     then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
