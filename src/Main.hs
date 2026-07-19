@@ -106,31 +106,31 @@ run (Opts {..})
   | mode == DeleteImage =
       removeImage (progname ++ "-" ++ containerBase)
   | mode == Remove = do
-      exists <- cmdBool "podman" ["container", "exists", containerPrefix]
+      exists <- cmdBool "podman" ["container", "exists", containerName]
       if exists
         then do
           (_, out, _) <- cmdFull "podman"
-            ["container", "inspect", "-f", "{{.State.Running}}", containerPrefix] ""
+            ["container", "inspect", "-f", "{{.State.Running}}", containerName] ""
           when (take 4 out == "true") $ do
             putStr "stopping "
-            cmd_ "podman" ["stop", containerPrefix]
+            cmd_ "podman" ["stop", containerName]
           putStr "rm "
-          cmd_ "podman" ["rm", containerPrefix]
-        else warning $ "container" +-+ containerPrefix +-+ "not found"
+          cmd_ "podman" ["rm", containerName]
+        else warning $ "container" +-+ containerName +-+ "not found"
   | mode == Stop = do
-      exists <- cmdBool "podman" ["container", "exists", containerPrefix]
+      exists <- cmdBool "podman" ["container", "exists", containerName]
       if exists
         then do
           putStr "stop "
-          cmd_ "podman" ["stop", containerPrefix]
-        else warning $ "container" +-+ containerPrefix +-+ "not found"
+          cmd_ "podman" ["stop", containerName]
+        else warning $ "container" +-+ containerName +-+ "not found"
   | otherwise = do
   container <-
     if unique
     then do
       pid <- getProcessID
-      return $ containerPrefix ++ "-" ++ show pid
-    else return containerPrefix
+      return $ containerName ++ "-" ++ show pid
+    else return containerName
   debug $ "container:" +-+ container
   running <-
     if unique
@@ -298,7 +298,7 @@ run (Opts {..})
           map (\c -> if c == ':' then '-' else c) toolbox
         Nothing -> error' "no TOOLBOX arg given"
 
-    containerPrefix =
+    containerName =
       case mname of
         Just ('^':n) -> n
         Just n -> progname ++ "-" ++ n
