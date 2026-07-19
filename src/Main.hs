@@ -50,6 +50,7 @@ data Opts = Opts
   , nosudo :: Bool
   , unique :: Bool
   , podmanopts :: [String]
+  , debugging :: Bool
   , dryrun :: Bool
   , refresh :: Bool
   , command :: [String]
@@ -83,6 +84,7 @@ main = do
     <*> switchLongWith "no-sudo" "Skip passwordless sudo setup"
     <*> switchLongWith "unique" "Run a new container even if one is already running"
     <*> many (strOptionLongWith "podman-opt" "OPTION" "Pass an option directly to podman")
+    <*> switchLongWith "debug" "Show debug output"
     <*> switchLongWith "dryrun" "Print the podman command instead of running it"
     <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
     <*> many (argumentWith str "CMD"))
@@ -129,6 +131,7 @@ run (Opts {..})
       pid <- getProcessID
       return $ containerPrefix ++ "-" ++ show pid
     else return containerPrefix
+  debug $ "container:" +-+ container
   running <-
     if unique
     then return False
@@ -186,6 +189,8 @@ run (Opts {..})
           Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
           Nothing -> return Nothing
       let isImage = ':' `elem` toolbox
+      debug $ if isImage then "image:" +-+ toolbox
+              else "toolbox:" +-+ toolbox
       image <- if isImage
                then return toolbox
                else commitToolbox toolbox refresh
@@ -238,12 +243,14 @@ run (Opts {..})
             if isImage
             then " || exec" +-+ runuserCmd
             else ""
+          trace = if debugging then ["set -x"] else []
           setup = intercalate " && "
-                  (installSetup ++ sudoSetup ++ homeSetup ++
+                  (trace ++ installSetup ++ sudoSetup ++ homeSetup ++
                   [initSetup | not (null allinits)] ++
                   ["exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd])
                   ++ fallback
 
+      debug $ "setup:" +-+ setup
       mounts <- mapM addSelinuxLabel volumes
 
       let workdirPart =
@@ -288,6 +295,8 @@ run (Opts {..})
         Just ('^':n) -> n
         Just n -> progname ++ "-" ++ n
         Nothing -> progname ++ "-" ++ containerBase
+
+    debug msg = when debugging $ warning $ "debug:" +-+ msg
 
 -- image management
 
