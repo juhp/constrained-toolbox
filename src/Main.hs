@@ -2,7 +2,6 @@
 
 {-# LANGUAGE RecordWildCards #-}
 
-
 module Main (main) where
 
 import Control.Monad (unless, when)
@@ -316,13 +315,13 @@ commitToolbox toolbox refresh = do
       containerExists <- cmdBool "podman" ["container", "exists", toolbox]
       if containerExists
         then do
-          (ok, _, err) <- cmdFull "buildah"
-                          ["commit", "--disable-compression", toolbox, image] ""
-          if ok
-            then return image
-            else error' $ "could not commit toolbox container '"
-                 ++ toolbox ++ "':" +-+ err
-        else error' $ "toolbox container '" ++ toolbox ++ "' not found"
+        putStr "writing image "
+        ok <- cmdBool "buildah"
+              ["commit", "--disable-compression", toolbox, image]
+        if ok
+          then return image
+          else error' $ "could not commit image of container" +-+ toolbox
+        else error' $ "container '" ++ toolbox ++ "' not found"
 
 removeImage :: String -> IO ()
 removeImage image = do
