@@ -42,6 +42,7 @@ data Opts = Opts
   , caps :: [String]
   , mhome :: Maybe FilePath
   , mproject :: Maybe FilePath
+  , mname :: Maybe String
   , mode :: Mode
   , persistent :: Bool
   , readonly :: Bool
@@ -70,6 +71,7 @@ main = do
     <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
     <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
     <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
+    <*> optional (strOptionWith 'n' "name" "NAME" "Container name (for creating or joining)")
     <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
          flagLongWith' List "list" "List constrained-toolbox containers" <|>
          flagLongWith' Remove "remove" "Remove the container" <|>
@@ -102,33 +104,31 @@ run (Opts {..})
   | mode == DeleteImage =
       removeImage (progname ++ "-" ++ containerBase)
   | mode == Remove = do
-      let container = progname ++ "-" ++ containerBase
-      exists <- cmdBool "podman" ["container", "exists", container]
+      exists <- cmdBool "podman" ["container", "exists", containerPrefix]
       if exists
         then do
           (_, out, _) <- cmdFull "podman"
-            ["container", "inspect", "-f", "{{.State.Running}}", container] ""
+            ["container", "inspect", "-f", "{{.State.Running}}", containerPrefix] ""
           when (take 4 out == "true") $ do
             putStr "stopping "
-            cmd_ "podman" ["stop", container]
+            cmd_ "podman" ["stop", containerPrefix]
           putStr "rm "
-          cmd_ "podman" ["rm", container]
-        else warning $ "container" +-+ container +-+ "not found"
+          cmd_ "podman" ["rm", containerPrefix]
+        else warning $ "container" +-+ containerPrefix +-+ "not found"
   | mode == Stop = do
-      let container = progname ++ "-" ++ containerBase
-      exists <- cmdBool "podman" ["container", "exists", container]
+      exists <- cmdBool "podman" ["container", "exists", containerPrefix]
       if exists
         then do
           putStr "stop "
-          cmd_ "podman" ["stop", container]
-        else warning $ "container" +-+ container +-+ "not found"
+          cmd_ "podman" ["stop", containerPrefix]
+        else warning $ "container" +-+ containerPrefix +-+ "not found"
   | otherwise = do
   container <-
     if unique
     then do
       pid <- getProcessID
-      return $ progname ++ "-" ++ containerBase ++ "-" ++ show pid
-    else return $ progname ++ "-" ++ containerBase
+      return $ containerPrefix ++ "-" ++ show pid
+    else return containerPrefix
   running <-
     if unique
     then return False
@@ -219,6 +219,10 @@ run (Opts {..})
           userCmdParts = mkUserCmd command allinits
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
           sudoers = "/etc/sudoers.d" </> progname
+          installSetup =
+            if isImage
+            then ["(command -v runuser >/dev/null 2>&1 || dnf install -y util-linux sudo >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 && apt-get install -y util-linux sudo >/dev/null 2>&1 || true)"]
+            else []
           sudoSetup =
             if nosudo
             then ["rm -f /usr/bin/sudo"]
@@ -230,10 +234,15 @@ run (Opts {..})
             then ["mkdir -p" +-+ shellQuote home,
                   "chown" +-+ username +-+ shellQuote home]
             else []
-          setup = intercalate " && " $
-                  sudoSetup ++ homeSetup ++
+          fallback =
+            if isImage
+            then " || exec" +-+ runuserCmd
+            else ""
+          setup = intercalate " && "
+                  (installSetup ++ sudoSetup ++ homeSetup ++
                   [initSetup | not (null allinits)] ++
-                  ["exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd]
+                  ["exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd])
+                  ++ fallback
 
       mounts <- mapM addSelinuxLabel volumes
 
@@ -245,9 +254,8 @@ run (Opts {..})
           args = "run" :
                  [ "--rm" | not persistent] ++
                  [ "-it", "--userns=keep-id",
-                 "--name", container]
-                ++ (if isImage then [] else ["--user", "root"])
-                ++ ["-e", "HOME=" ++ home]
+                 "--name", container, "--hostname", container,
+                 "--user", "root", "-e", "HOME=" ++ home]
                 ++ workdirPart
                 ++ (if readonly
                     then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
@@ -260,9 +268,7 @@ run (Opts {..})
                 ++ concatMap (\m -> ["-v", m]) mounts
                 ++ concatMap (\e -> ["-e", e]) envVars
                 ++ podmanopts
-                ++ if isImage
-                   then image : userCmdParts
-                   else [image, "sh", "-c", setup]
+                ++ [image, "sh", "-c", setup]
 
       if dryrun
         then putStrLn $ unwords $ "podman" : map shellQuote args
@@ -276,6 +282,12 @@ run (Opts {..})
         Nothing -> error' "TOOLBOX argument required"
 
     containerBase = map (\c -> if c == ':' then '-' else c) toolbox
+
+    containerPrefix =
+      case mname of
+        Just ('^':n) -> n
+        Just n -> progname ++ "-" ++ n
+        Nothing -> progname ++ "-" ++ containerBase
 
 -- image management
 
