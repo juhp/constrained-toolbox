@@ -9,6 +9,7 @@ import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust, isNothing, mapMaybe)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
 import System.Exit (exitWith)
 import System.FilePath ((</>), takeFileName)
@@ -25,6 +26,7 @@ import SimpleCmdArgs
 import TOML (Value(..), Table, renderTOMLError, decodeFile)
 
 import Paths_envclave (version)
+import Script
 
 progname :: String
 progname = "envclave"
@@ -237,7 +239,7 @@ run (Opts {..})
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
           sudoers = "/etc/sudoers.d" </> progname
           installSetup =
-            ["(command -v runuser >/dev/null 2>&1 || dnf install -y util-linux sudo >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 && apt-get install -y util-linux sudo >/dev/null 2>&1 || true)" | isImage]
+            [TL.unpack $ installScript debugging | isImage]
           sudoSetup =
             if nosudo
             then ["rm -f /usr/bin/sudo"]

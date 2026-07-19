@@ -1,3 +1,4 @@
 snapshot: lts-19.33
 extra-deps:
 - toml-reader-0.2.2.0
+- shell-monad-0.6.10

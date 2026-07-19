@@ -3,3 +3,4 @@ extra-deps:
 - toml-reader-0.2.1.0
 - simple-cmd-args-0.1.8
 - simple-cmd-0.2.3
+- shell-monad-0.6.10

@@ -37,6 +37,7 @@ source-repository head
 executable envclave
   main-is:             Main.hs
   other-modules:       Paths_envclave
+                       Script
   autogen-modules:     Paths_envclave
   hs-source-dirs:      src
   build-depends:       base < 5
@@ -45,6 +46,7 @@ executable envclave
                      , filepath
                      , containers
                      , process
+                     , shell-monad
                      , simple-cmd >= 0.2.3
                      , simple-cmd-args >= 0.1.8
                      , text
