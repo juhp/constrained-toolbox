@@ -127,68 +127,68 @@ run (Opts {..})
           cmd_ "podman" ["stop", containerName]
         else warning $ "container" +-+ containerName +-+ "not found"
   | otherwise = do
-  container <-
-    if unique
-    then do
-      pid <- getProcessID
-      return $ containerName ++ "-" ++ show pid
-    else return containerName
-  debug $ "container:" +-+ container
-  running <-
-    if unique
-    then return False
-    else do
-      exists <- cmdBool "podman" ["container", "exists", container]
-      debug $ container +-+ "exists"
-      if exists
+      container <-
+        if unique
         then do
-          (_, out, _) <- cmdFull "podman"
-            ["container", "inspect", "-f", "{{.State.Running}}", container] ""
-          if take 4 out == "true"
-            then return True
-            else do
-            putStr "start "
-            cmd_ "podman" ["start", container]
-            return True
-        else return False
-  if running
-    then do
-      let noopts = and
-            [ null vols
-            , null envs
-            , null paths
-            , null inits
-            , null caps
-            , isNothing mproject
-            , isNothing mhome
-            , not keep
-            , not readonly
-            , not nonetwork
-            , not nosudo
-            , null podmanopts
-            , not refresh
-            ]
-      unless noopts $
-        error' "cannot give options for an existing container!"
-      warning "Joining existing container"
-      home <- getHomeDirectory
-      username <- getEffectiveUserName
-      let userCmd = if null command then ["bash"] else command
-          execCmd = ["podman", "exec", "-it", container,
-                     "runuser", "-u", username, "--",
-                     "env", "HOME=" ++ home] ++ userCmd
-      if dryrun
-        then putStrLn $ unwords (map shellQuote execCmd)
+          pid <- getProcessID
+          return $ containerName ++ "-" ++ show pid
+        else return containerName
+      debug $ "container:" +-+ container
+      running <-
+        if unique
+        then return False
         else do
-          ret <- rawSystem "podman" (drop 1 execCmd)
-          exitWith ret
-    else do
-      case mtoolbox of
-        Nothing ->
-          when (isNothing mtoolbox) $
-          error' $ "TOOLBOX argument needed to create a container" +-+
-          if isJust mname then "(use '--name ^...' to reference a full container name)" else ""
-        Just toolbox -> createContainer toolbox container
+          exists <- cmdBool "podman" ["container", "exists", container]
+          debug $ container +-+ "exists"
+          if exists
+            then do
+              (_, out, _) <- cmdFull "podman"
+                ["container", "inspect", "-f", "{{.State.Running}}", container] ""
+              if take 4 out == "true"
+                then return True
+                else do
+                putStr "start "
+                cmd_ "podman" ["start", container]
+                return True
+            else return False
+      if running
+        then do
+          let noopts = and
+                [ null vols
+                , null envs
+                , null paths
+                , null inits
+                , null caps
+                , isNothing mproject
+                , isNothing mhome
+                , not keep
+                , not readonly
+                , not nonetwork
+                , not nosudo
+                , null podmanopts
+                , not refresh
+                ]
+          unless noopts $
+            error' "cannot give options for an existing container!"
+          warning "Joining existing container"
+          home <- getHomeDirectory
+          username <- getEffectiveUserName
+          let userCmd = if null command then ["bash"] else command
+              execCmd = ["podman", "exec", "-it", container,
+                         "runuser", "-u", username, "--",
+                         "env", "HOME=" ++ home] ++ userCmd
+          if dryrun
+            then putStrLn $ unwords (map shellQuote execCmd)
+            else do
+              ret <- rawSystem "podman" (drop 1 execCmd)
+              exitWith ret
+        else do
+          case mtoolbox of
+            Nothing ->
+              when (isNothing mtoolbox) $
+              error' $ "TOOLBOX argument needed to create a container" +-+
+              if isJust mname then "(use '--name ^...' to reference a full container name)" else ""
+            Just toolbox -> createContainer toolbox container
   where
     createContainer toolbox container = do
       mprojectDir <-
