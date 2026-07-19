@@ -44,7 +44,7 @@ data Opts = Opts
   , mproject :: Maybe FilePath
   , mname :: Maybe String
   , mode :: Mode
-  , persistent :: Bool
+  , keep :: Bool
   , readonly :: Bool
   , nonetwork :: Bool
   , nosudo :: Bool
@@ -159,7 +159,7 @@ run (Opts {..})
             , null caps
             , isNothing mproject
             , isNothing mhome
-            , not persistent
+            , not keep
             , not readonly
             , not nonetwork
             , not nosudo
@@ -266,7 +266,7 @@ run (Opts {..})
               Nothing | not isImage -> ["--workdir", home]
                       | otherwise -> []
           args = "run" :
-                 [ "--rm" | not persistent] ++
+                 [ "--rm" | not keep] ++
                  [ "-it", "--userns=keep-id",
                  "--name", container, "--hostname", container,
                  "--user", "root", "-e", "HOME=" ++ home]
