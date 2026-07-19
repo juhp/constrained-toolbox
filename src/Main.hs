@@ -9,7 +9,7 @@ import Control.Monad (unless, when)
 import System.IO (BufferMode(NoBuffering), hSetBuffering, stdout)
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (isNothing, mapMaybe)
+import Data.Maybe (isJust, isNothing, mapMaybe)
 import qualified Data.Text as T
 import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
 import System.Exit (exitWith)
@@ -137,6 +137,7 @@ run (Opts {..})
     then return False
     else do
       exists <- cmdBool "podman" ["container", "exists", container]
+      debug $ container +-+ "exists"
       if exists
         then do
           (_, out, _) <- cmdFull "podman"
@@ -180,6 +181,14 @@ run (Opts {..})
           ret <- rawSystem "podman" (drop 1 execCmd)
           exitWith ret
     else do
+      case mtoolbox of
+        Nothing ->
+          when (isNothing mtoolbox) $
+          error' $ "TOOLBOX argument needed to create a container" +-+
+          if isJust mname then "(use '--name ^...' to reference a full container name)" else ""
+        Just toolbox -> createContainer toolbox container
+  where
+    createContainer toolbox container = do
       mprojectDir <-
         case mproject of
           Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
@@ -282,13 +291,12 @@ run (Opts {..})
         else do
           ret <- rawSystem "podman" args
           exitWith ret
-  where
-    toolbox =
-      case mtoolbox of
-        Just t -> t
-        Nothing -> error' "TOOLBOX argument required"
 
-    containerBase = map (\c -> if c == ':' then '-' else c) toolbox
+    containerBase =
+      case mtoolbox of
+        Just toolbox ->
+          map (\c -> if c == ':' then '-' else c) toolbox
+        Nothing -> error' "no TOOLBOX arg given"
 
     containerPrefix =
       case mname of
