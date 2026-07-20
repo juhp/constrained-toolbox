@@ -1,6 +1,6 @@
 cabal-version:       2.2
-name:                envclave
-version:             0.2.1
+name:                encapsule
+version:             0.3
 synopsis:            Run isolated toolbox containers with podman
 description:
         This tool (originally based on the toolbox-constrained project)
@@ -14,8 +14,8 @@ author:              Jens Petersen <juhpetersen@gmail.com>
 maintainer:          Jens Petersen <juhpetersen@gmail.com>
 copyright:           2026  Jens Petersen <juhpetersen@gmail.com>
 category:            Utility
-homepage:            https://github.com/juhp/envclave
-bug-reports:         https://github.com/juhp/envclave/issues
+homepage:            https://github.com/juhp/encapsule
+bug-reports:         https://github.com/juhp/encapsule/issues
 build-type:          Simple
 extra-doc-files:     README.md
                      ChangeLog.md
@@ -32,13 +32,13 @@ tested-with:         GHC == 8.10.7
 
 source-repository head
   type:                git
-  location:            https://github.com/juhp/envclave.git
+  location:            https://github.com/juhp/encapsule.git
 
-executable envclave
+executable encapsule
   main-is:             Main.hs
-  other-modules:       Paths_envclave
+  other-modules:       Paths_encapsule
                        Script
-  autogen-modules:     Paths_envclave
+  autogen-modules:     Paths_encapsule
   hs-source-dirs:      src
   build-depends:       base < 5
                      , directory

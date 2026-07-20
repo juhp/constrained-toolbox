@@ -1,7 +1,7 @@
-# envclave
+# encapsule
 
 CLI tool to run enclaved (isolated) developer containers that protect your home directory and host from container side effects.
-(An "envclave" is an enclaved container environment, where you control what is shared with the host.)
+(An "encapsule" is an enclaved container environment, where you control what is shared with the host.)
 
 Originally derived from [toolbox-constrained](https://github.com/swick/toolbox-constrained) tool.
 
@@ -11,7 +11,7 @@ your home directory or integrate with the host by default.
 You can explicitly choose what to enable and select user-configured "capabilities" the container can access.
 
 ```
-envclave TOOLBOX [options] [CMD...]
+encapsule TOOLBOX [options] [CMD...]
 ```
 
 The image is committed (saved) from the named toolbox container using buildah.
@@ -20,52 +20,52 @@ The image is committed (saved) from the named toolbox container using buildah.
 
 ```bash
 # Isolated shell, no host access
-$ envclave my-toolbox
+$ encapsule my-toolbox
 
 # Mount current (project) directory in / and set it as the working directory
-$ envclave my-toolbox -p .
+$ encapsule my-toolbox -p .
 
 # Bind mount a volume
-$ envclave my-toolbox -v ~/data:/data
+$ encapsule my-toolbox -v ~/data:/data
 
 # Mount a "home" directory (created if it doesn't exist)
-$ envclave my-toolbox --home /tmp/somedir
+$ encapsule my-toolbox --home /tmp/somedir
 
 # Use capabilities from config
-$ envclave my-toolbox --cap ssh --cap git
+$ encapsule my-toolbox --cap ssh --cap git
 
 # Read-only container filesystem
-$ envclave my-toolbox --readonly
+$ encapsule my-toolbox --readonly
 
 # Remove the saved image
-$ envclave my-toolbox --delete
+$ encapsule my-toolbox --delete
 
 # Set environment variables and prepend to PATH
-$ envclave my-toolbox -e MY_VAR=hello -P ~/.local/bin
+$ encapsule my-toolbox -e MY_VAR=hello -P ~/.local/bin
 
 # Run a specific command
-$ envclave my-toolbox -- ls /
+$ encapsule my-toolbox -- ls /
 
 # Dry run: print the podman command without running it
-$ envclave my-toolbox --dryrun
+$ encapsule my-toolbox --dryrun
 ```
 
 Containers are ephemeral by default: use `--permanent` to create a long lived container to keep around.
 
 ### Usage
 
-`$ envclave --version`
+`$ encapsule --version`
 
 ```
 0.2.1
 ```
 
-`$ envclave --help`
+`$ encapsule --help`
 
 ```
-envclave
+encapsule
 
-Usage: envclave [--version] [TOOLBOX]
+Usage: encapsule [--version] [TOOLBOX]
                            [-v|--volume HOST:CONTAINER[:opts]]
                            [-e|--env KEY[=VALUE]] [-P|--path DIR]
                            [-i|--init CMD] [--cap NAME] [--home DIR]
@@ -103,7 +103,7 @@ Available options:
 ## Capabilities
 
 Define reusable groups of volumes, environment variables, PATH entries,
-and init commands in `~/.config/envclave/config.toml`:
+and init commands in `~/.config/encapsule/config.toml`:
 
 ```toml
 [capabilities.ssh]
@@ -146,7 +146,7 @@ If the host and container paths are the same, you can use the shorthand
 
 A copr repo is available for Fedora and Epel 10:
 
-<https://copr.fedorainfracloud.org/coprs/petersen/envclave/>
+<https://copr.fedorainfracloud.org/coprs/petersen/encapsule/>
 
 ## Building from source
 

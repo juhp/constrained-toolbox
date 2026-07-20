@@ -1,4 +1,4 @@
-# envclave releases
+# encapsule releases
 
 ## 0.3
 - project renamed from constrained-toolbox
