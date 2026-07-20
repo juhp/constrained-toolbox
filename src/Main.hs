@@ -153,6 +153,8 @@ run (Opts {..})
                 cmd_ "podman" ["start", container]
                 return True
             else return False
+      home <- getHomeDirectory >>= canonicalizePath
+      debug $ "HOME:" +-+ home
       if running
         then do
           let noopts = and
@@ -173,7 +175,6 @@ run (Opts {..})
           unless noopts $
             error' "cannot give options for an existing container!"
           warning "Joining existing container"
-          home <- getHomeDirectory
           username <- getEffectiveUserName
           let userCmd = if null command then ["bash"] else command
               execCmd = ["podman", "exec", "-it", container,
@@ -190,10 +191,9 @@ run (Opts {..})
               when (isNothing mtoolbox) $
               error' $ "TOOLBOX argument needed to create a container" +-+
               if isJust mname then "(use '--name ^...' to reference a full container name)" else ""
-            Just toolbox -> createContainer toolbox container
+            Just toolbox -> createContainer home toolbox container
   where
-    createContainer toolbox container = do
-      home <- getHomeDirectory
+    createContainer home toolbox container = do
       mprojectDir <-
         case mproject of
           Just dir -> Just <$> checkMountPoint home dir
@@ -263,7 +263,7 @@ run (Opts {..})
                   ++ fallback
 
       debug $ "setup:" +-+ setup
-      mounts <- mapM addSelinuxLabel volumes
+      mounts <- mapM (addSelinuxLabel home) volumes
 
       let workdirPart =
             case mprojectDir of
@@ -407,22 +407,22 @@ valueToString _ = Nothing
 
 -- SELinux labeling
 
-addSelinuxLabel :: String -> IO String
-addSelinuxLabel spec =
+addSelinuxLabel :: FilePath -> String -> IO String
+addSelinuxLabel home spec =
   case break (== ':') spec of
     (hostPart, []) -> do
-      hostExp <- expandPath hostPart
+      hostExp <- expandPath home hostPart
       sockFile <- isSocketFile hostExp
       return $ hostExp ++ ":" ++ hostExp ++ if sockFile then "" else ":z"
     (hostPart, _:rest') -> do
-      hostExp <- expandPath hostPart
+      hostExp <- expandPath home hostPart
       let (containerPart, optsPart)
             | isPathStart rest' =
                 case break (== ':') rest' of
                   (c, [])  -> (c, Nothing)
                   (c, _:o) -> (c, Just o)
             | otherwise = (hostExp, if null rest' then Nothing else Just rest')
-      containerExp <- expandPath containerPart
+      containerExp <- expandPath home containerPart
       sockFile <- isSocketFile hostExp
       let labeled = case optsPart of
             Nothing ->
@@ -453,13 +453,12 @@ isSocketFile path = do
 rootDest :: FilePath -> FilePath
 rootDest dir = '/' : takeFileName dir
 
-expandPath :: String -> IO String
-expandPath ('~':'/':rest) = do
-  home <- getHomeDirectory
+expandPath :: FilePath -> String -> IO String
+expandPath home ('~':'/':rest) = do
   rest' <- expandEnvVars rest
   return $ home </> rest'
-expandPath "~" = getHomeDirectory
-expandPath s = expandEnvVars s
+expandPath home "~" = return home
+expandPath _ s = expandEnvVars s
 
 expandEnvVars :: String -> IO String
 expandEnvVars [] = return []
@@ -490,7 +489,7 @@ expandEnvVars (c:rest) = do
 
 checkMountPoint :: FilePath -> FilePath -> IO FilePath
 checkMountPoint home dir = do
-  finaldir <- expandPath dir >>= canonicalizePath
+  finaldir <- expandPath home dir >>= canonicalizePath
   when (finaldir == home) $
     error' $ "mounting $HOME not supported!"
   return finaldir
