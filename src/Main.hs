@@ -239,7 +239,7 @@ run (Opts {..})
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
           sudoers = "/etc/sudoers.d" </> progname
           installSetup =
-            [TL.unpack $ installScript debugging | isImage]
+            [TL.unpack $ installScript debugging (not nosudo) | isImage]
           sudoSetup =
             if nosudo
             then ["rm -f /usr/bin/sudo"]

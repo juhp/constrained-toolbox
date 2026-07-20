@@ -11,18 +11,21 @@ import System.Posix.IO
 
 default (T.Text)
 
-installScript :: Bool -> T.Text
-installScript dbg =
+installScript :: Bool -> Bool -> T.Text
+installScript dbg sudo =
   T.replace "\t" " " . linearScript $ do
   unlessCmd (haveCmd "runuser") $ do
+    let pkgs = "util-linux" : ["sudo" | sudo]
+        installargs = ["install", "-y"] ++ pkgs
+    run "echo" $ T.pack "installing:" : pkgs
     ifCmd (haveCmd "dnf")
-      (runHide "dnf" ["install", "-y", "util-linux", "sudo"]
+      (runHide "dnf" installargs
        -||-
        run "true" [])
       (whenCmd (haveCmd "apt-get") $
         runHide "apt-get" ["update"]
         -&&-
-        runHide "apt-get" ["install", "-y", "util-linux", "sudo"]
+        runHide "apt-get" installargs
         -||-
         run "true" [])
   where
