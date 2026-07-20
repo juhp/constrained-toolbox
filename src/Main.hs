@@ -11,6 +11,7 @@ import Data.Maybe (isJust, isNothing, mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
+import System.Environment.XDG.BaseDir (getUserConfigFile)
 import System.Exit (exitWith)
 import System.FilePath ((</>), takeFileName)
 import System.IO (BufferMode(NoBuffering), hSetBuffering, stdout)
@@ -340,9 +341,7 @@ removeImage image = do
 -- config
 
 configPath :: IO FilePath
-configPath = do
-  home <- getHomeDirectory
-  return $ home </> ".config" </> progname </> "config.toml"
+configPath = getUserConfigFile progname "config.toml"
 
 loadConfig :: IO (Maybe Table)
 loadConfig = do
