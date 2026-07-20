@@ -1,3 +1,1 @@
-snapshot: lts-24.50
-extra-deps:
-- shell-monad-0.6.10
+snapshot: lts-24.51
