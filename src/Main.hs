@@ -19,10 +19,8 @@ import System.Posix.Env (getEnvDefault)
 import System.Posix.Files (getFileStatus, isSocket)
 import System.Posix.User (getEffectiveUserName)
 import System.Process (rawSystem)
-
 import SimpleCmd (cmd_, cmdBool, cmdFull, error', warning, (+-+))
 import SimpleCmdArgs
-
 import TOML (Value(..), Table, renderTOMLError, decodeFile)
 
 import Paths_encapsule (version)
@@ -194,13 +192,14 @@ run (Opts {..})
             Just toolbox -> createContainer toolbox container
   where
     createContainer toolbox container = do
+      home <- getHomeDirectory
       mprojectDir <-
         case mproject of
-          Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
+          Just dir -> Just <$> checkMountPoint home dir
           Nothing -> return Nothing
       mhomeDir <-
         case mhome of
-          Just dir -> Just <$> (expandPath dir >>= canonicalizePath)
+          Just dir -> Just <$> checkMountPoint home dir
           Nothing -> return Nothing
       let isImage = ':' `elem` toolbox
       debug $ if isImage then "image:" +-+ toolbox
@@ -214,15 +213,14 @@ run (Opts {..})
       (extraVols, extraEnvs, extraPaths, extraInits, extraSecurityOpts) <-
         resolveCapabilities capabilities caps
 
-      home <- getHomeDirectory
-      username <- getEffectiveUserName
-
       homeVol <-
         case mhomeDir of
           Just d -> do
             createDirectoryIfMissing True d
             return [d ++ ":" ++ home]
           Nothing -> return []
+
+      username <- getEffectiveUserName
 
       let projectVol =
             case mprojectDir of
@@ -233,10 +231,11 @@ run (Opts {..})
           allpaths = paths ++ extraPaths
           allinits = inits ++ extraInits
 
-      let envParts = ("HOME=" ++ shellQuote home) : pathEnvPart allpaths
+          envParts = ("HOME=" ++ shellQuote home) : pathEnvPart allpaths
           initSetup = mkInitSetup allinits
           userCmdParts = mkUserCmd command allinits
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
+
           sudoers = "/etc/sudoers.d" </> progname
           installSetup =
             [TL.unpack $ installScript debugging (not nosudo) | isImage]
@@ -489,6 +488,13 @@ expandEnvVars ('$':rest) =
 expandEnvVars (c:rest) = do
   rest' <- expandEnvVars rest
   return (c : rest')
+
+checkMountPoint :: FilePath -> FilePath -> IO FilePath
+checkMountPoint home dir = do
+  finaldir <- expandPath dir >>= canonicalizePath
+  when (finaldir == home) $
+    error' $ "mounting $HOME not supported!"
+  return finaldir
 
 -- shell command construction
 

@@ -2,6 +2,7 @@
 
 ## 0.3
 - project renamed from constrained-toolbox
+- error for `--project`/`--home` $HOME
 
 ## 0.2.1 (2026-07-17)
 - add --delete container command
