@@ -30,6 +30,9 @@ import Script
 progname :: String
 progname = "encapsule"
 
+encapsule :: String -> String -> String
+encapsule before after = before +-+ progname +-+ after
+
 data Mode = Caps | DeleteImage | List | Remove | Run | Stop
   deriving Eq
 
@@ -66,23 +69,23 @@ main = do
     (Opts
     <$> optional (argumentWith str "TOOLBOX")
     <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
-    <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variables")
+    <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variable")
     <*> many (strOptionWith 'P' "path" "DIR" "Prepend a directory to PATH inside the container")
-    <*> many (strOptionWith 'i' "init" "CMD" "Run a bash snippet before entering the container")
+    <*> many (strOptionWith 'i' "init" "CMD" ("A bash snippet run when creating the" `encapsule` "container"))
     <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
     <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
     <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
-    <*> optional (strOptionWith 'n' "name" "NAME" "Container name (for creating or joining)")
+    <*> optional (strOptionWith 'n' "name" "NAME" "Container name (for creating or actions)")
     <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
-         flagLongWith' List "list" "List encapsule images and containers" <|>
-         flagLongWith' Remove "remove" "Remove the container" <|>
-         flagLongWith' DeleteImage "delete-image" "Remove the image" <|>
-         flagLongWith Run Stop "stop" "Stop the container")
-    <*> switchLongWith "keep" "Keep the container after exiting"
-    <*> switchLongWith "readonly" "Make the container filesystem read-only"
+         flagLongWith' List "list" ("List" `encapsule` "images and containers") <|>
+         flagLongWith' Remove "remove" ("Remove" `encapsule` "container") <|>
+         flagLongWith' DeleteImage "delete-image" ("Remove" `encapsule` "image") <|>
+         flagLongWith Run Stop "stop" ("Stop" `encapsule` "container"))
+    <*> switchLongWith "keep" ("Keep the" `encapsule` "container after exiting")
+    <*> switchLongWith "readonly" ("Make the" `encapsule` "container filesystem read-only")
     <*> switchLongWith "no-network" "Disable network access"
     <*> switchLongWith "no-sudo" "Skip passwordless sudo setup"
-    <*> switchLongWith "unique" "Run a new container even if one is already running"
+    <*> switchLongWith "unique" ("Run a new" `encapsule` "container even if one is already running")
     <*> many (strOptionLongWith "podman-opt" "OPTION" "Pass an option directly to podman")
     <*> switchLongWith "debug" "Show debug output"
     <*> switchLongWith "dryrun" "Print the podman command instead of running it"

@@ -6,7 +6,7 @@ description:
         This tool (originally based on the toolbox-constrained project)
         allows running isolated toolbox containers with podman.
         Mounting of home and host integration are not enabled by default,
-        but one can choose to enable such options including capabilities
+        but one can choose options to do so including capabilities
         specified in a toml configuration file.
 license:             Apache-2.0
 license-file:        LICENSE
