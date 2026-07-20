@@ -23,6 +23,7 @@ The image is committed (saved) from the named toolbox container using buildah.
 $ encapsule my-toolbox
 
 # Mount current (project) directory in / and set it as the working directory
+# (also names the container after the project, e.g. encapsule-my-toolbox-myproject)
 $ encapsule my-toolbox -p .
 
 # Bind mount a volume
@@ -141,6 +142,10 @@ If the host and container paths are the same, you can use the shorthand
 3. Sets up passwordless `sudo` inside the container
 4. Bind mounts get SELinux `:z` (shared) labels automatically,
    so multiple containers can safely access the same directories
+5. When `-p/--project DIR` is used (and `--name` isn't), the container name
+   includes the project directory's name (e.g. `encapsule-my-toolbox-myproject`),
+   so you can run the same toolbox against different projects at the same time
+   in separate containers
 
 ## Installation
 

@@ -110,6 +110,8 @@ run (Opts {..})
       when dryrun $
       removeImage (progname ++ "-" ++ containerBase)
   | mode == Remove = do
+      mprojectDir <- resolveProjectDir mproject
+      let containerName = mkContainerName mname containerBase mprojectDir
       exists <- cmdBool "podman" ["container", "exists", containerName]
       if exists
         then do
@@ -122,6 +124,8 @@ run (Opts {..})
           cmd_ "podman" ["rm", containerName]
         else warning $ "container" +-+ containerName +-+ "not found"
   | mode == Stop = do
+      mprojectDir <- resolveProjectDir mproject
+      let containerName = mkContainerName mname containerBase mprojectDir
       exists <- cmdBool "podman" ["container", "exists", containerName]
       if exists
         then do
@@ -129,6 +133,8 @@ run (Opts {..})
           cmd_ "podman" ["stop", containerName]
         else warning $ "container" +-+ containerName +-+ "not found"
   | otherwise = do
+      mprojectDir <- resolveProjectDir mproject
+      let containerName = mkContainerName mname containerBase mprojectDir
       container <-
         if unique
         then do
@@ -163,7 +169,7 @@ run (Opts {..})
                 , null paths
                 , null inits
                 , null caps
-                , isNothing mproject
+                , isNothing mproject || isNothing mname
                 , isNothing mhome
                 , not keep
                 , not readonly
@@ -191,13 +197,9 @@ run (Opts {..})
               when (isNothing mtoolbox) $
               error' $ "TOOLBOX argument needed to create a container" +-+
               if isJust mname then "(use '--name ^...' to reference a full container name)" else ""
-            Just toolbox -> createContainer home toolbox container
+            Just toolbox -> createContainer home mprojectDir toolbox container
   where
-    createContainer home toolbox container = do
-      mprojectDir <-
-        case mproject of
-          Just dir -> Just <$> checkMountPoint home dir
-          Nothing -> return Nothing
+    createContainer home mprojectDir toolbox container = do
       mhomeDir <-
         case mhome of
           Just dir -> Just <$> checkMountPoint home dir
@@ -301,12 +303,6 @@ run (Opts {..})
         Just toolbox ->
           map (\c -> if c == ':' then '-' else c) toolbox
         Nothing -> error' "no TOOLBOX arg given"
-
-    containerName =
-      case mname of
-        Just ('^':n) -> n
-        Just n -> progname ++ "-" ++ n
-        Nothing -> progname ++ "-" ++ containerBase
 
     debug msg = when debugging $ warning $ "debug:" +-+ msg
 
@@ -491,8 +487,35 @@ checkMountPoint :: FilePath -> FilePath -> IO FilePath
 checkMountPoint home dir = do
   finaldir <- expandPath home dir >>= canonicalizePath
   when (finaldir == home) $
-    error' $ "mounting $HOME not supported!"
+    error' "mounting $HOME not supported!"
   return finaldir
+
+resolveProjectDir :: Maybe FilePath -> IO (Maybe FilePath)
+resolveProjectDir Nothing = return Nothing
+resolveProjectDir (Just dir) = do
+  home <- getHomeDirectory >>= canonicalizePath
+  Just <$> checkMountPoint home dir
+
+-- container naming
+
+sanitizeName :: String -> String
+sanitizeName = map (\c -> if c `elem` nameChars then c else '-')
+  where
+    nameChars = ['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "_.-"
+
+projectSuffix :: Maybe FilePath -> String
+projectSuffix Nothing = ""
+projectSuffix (Just dir) =
+  case sanitizeName (takeFileName dir) of
+    "" -> ""
+    name -> "-" ++ name
+
+mkContainerName :: Maybe String -> String -> Maybe FilePath -> String
+mkContainerName mname base mprojectDir =
+  case mname of
+    Just ('^':n) -> n
+    Just n -> progname ++ "-" ++ n
+    Nothing -> progname ++ "-" ++ base ++ projectSuffix mprojectDir
 
 -- shell command construction
 

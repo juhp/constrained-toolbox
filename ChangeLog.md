@@ -3,6 +3,8 @@
 ## 0.3
 - project renamed from constrained-toolbox
 - error for `--project`/`--home` $HOME
+- `--project` now names the container after the project directory too,
+  so different projects can run concurrently in separate containers
 
 ## 0.2.1 (2026-07-17)
 - add --delete container command
