@@ -165,13 +165,21 @@ A copr repo is available for Fedora and Epel 10:
 
 ## Building from source
 
+Install `cabal-install` and `ghc`.
+
 ```bash
 cabal install
 ```
 
-or `stack install`.
+(or to build the latest release: `cabal install encapsule`)
 
-## Requirements
+### Build with stack
+Alternatively you can build with:
+```
+stack install
+```
+
+## Runtime Requirements
 
 - [podman](https://podman.io/) and [buildah](https://buildah.io/)
 - An existing (toolbox) container (created with `toolbox create`) or image.
@@ -183,7 +191,14 @@ I already mentioned [toolbox-constrained](https://github.com/swick/toolbox-const
 
 There is also similarly [schupfn](https://github.com/whot/schupfn/) which uses QEMU to run a toolbox container image in a VM with a direct private ssh connection.
 
-For stronger sandboxing and isolation, specially network, consider using [OpenShell](https://github.com/NVIDIA/OpenShell/).
+For stronger sandboxing and isolation, specially network, consider using [OpenShell](https://github.com/NVIDIA/OpenShell/). At some point this project might move to wrapping openshell possibly.
+
+## Disclaimer
+The simple isolation provided is "best effort" and
+comes with no (security) warranty.
+Please use this tool at your own risk.
+
+Reports, suggests, and contributions to improve the tool are very welcome.
 
 ## Contribute
 
