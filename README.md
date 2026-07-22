@@ -62,7 +62,7 @@ Encapsule containers are ephemeral by default: use `--keep` to leave the encapsu
 `$ encapsule --version`
 
 ```
-0.3
+0.4
 ```
 
 `$ encapsule --help`
@@ -70,18 +70,37 @@ Encapsule containers are ephemeral by default: use `--keep` to leave the encapsu
 ```
 encapsule
 
-Usage: encapsule [--version] [TOOLBOX] [-v|--volume HOST:CONTAINER[:opts]]
-                 [-e|--env KEY[=VALUE]] [-P|--path DIR] [-i|--init CMD]
-                 [--cap NAME] [--home DIR] [-p|--project DIR] [-n|--name NAME]
-                 [--caps | --list | --remove | --delete-image | --stop] [--keep]
-                 [--readonly] [--no-network] [--no-sudo] [--unique]
-                 [--podman-opt OPTION] [--debug] [--dryrun] [--refresh] [CMD]
+Usage: encapsule [--version] COMMAND
 
   Run a toolbox image in an isolated podman container
 
 Available options:
   -h,--help                Show this help text
   --version                Show version
+
+Available commands:
+  list                     List encapsule images and containers
+  list-caps                List encapsule images and containers
+  rm                       Remove an encapsule container
+  rmi                      Remove an encapsule image
+  stop                     Stop an encapsule container
+  run                      Run an encapsule container
+```
+
+### `run` command
+`$ encapsule run --help`
+
+```
+Usage: encapsule run TOOLBOX [-v|--volume HOST:CONTAINER[:opts]]
+                     [-e|--env KEY[=VALUE]] [-P|--path DIR] [-i|--init CMD]
+                     [--cap NAME] [--home DIR] [-w|--workdir DIR]
+                     [-n|--name NAME] [--keep] [--readonly] [--no-network]
+                     [--no-sudo] [--unique] [--podman-opt OPTION] [--debug]
+                     [--dryrun] [--refresh] [CMD]
+
+  Run an encapsule container
+
+Available options:
   -v,--volume HOST:CONTAINER[:opts]
                            Bind mounts (default to selinux :z)
   -e,--env KEY[=VALUE]     Set or pass through an environment variable
@@ -91,13 +110,8 @@ Available options:
   --cap NAME               Enable a capability from the config file
   --home DIR               Mount a directory as a writable home (created if
                            missing)
-  -p,--project DIR         Mount a project directory and set as workdir
-  -n,--name NAME           Container name (for creating or actions)
-  --caps                   List available capabilities from the config file
-  --list                   List encapsule images and containers
-  --remove                 Remove encapsule container
-  --delete-image           Remove encapsule image
-  --stop                   Stop encapsule container
+  -w,--workdir DIR         Mount a (project) directory as a workdir
+  -n,--name NAME           Optional container name (for creating or actions)
   --keep                   Keep the encapsule container after exiting
   --readonly               Make the encapsule container filesystem read-only
   --no-network             Disable network access
@@ -108,6 +122,7 @@ Available options:
   --debug                  Show debug output
   --dryrun                 Print the podman command instead of running it
   --refresh                Force re-commit of the toolbox image
+  -h,--help                Show this help text
 ```
 
 ## Capabilities

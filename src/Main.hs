@@ -67,7 +67,7 @@ main = do
     <*> many (strOptionWith 'i' "init" "CMD" "A bash snippet run when creating the encapsule container")
     <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
     <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
-    <*> optional projectOpt
+    <*> optional (projectOpt "Mount a (project) directory as a workdir")
     <*> optional nameOpt
     <*> switchLongWith "keep" "Keep the encapsule container after exiting"
     <*> switchLongWith "readonly" "Make the encapsule container filesystem read-only"
@@ -84,11 +84,12 @@ main = do
   where
     dryrunOpt = switchLongWith "dryrun" "Print the podman command instead of running it"
 
-    projectOpt = strOptionWith 'w' "workdir" "DIR" "Mount a (project) directory as a workdir"
+    projectOpt desc = strOptionWith 'w' "workdir" "DIR" desc
 
-    nameOpt = strOptionWith 'n' "name" "NAME" "Container name (for creating or actions)"
+    nameOpt = strOptionWith 'n' "name" "NAME" "Optional container name (prefix with '^' prefix to skip 'encapsule-' prefix)"
 
-    projectNameOpt = Project <$> projectOpt <|> Name <$> nameOpt
+    projectNameOpt = Project <$> projectOpt "Project name or path" <|>
+                     Name <$> nameOpt
 
 listCmd :: IO ()
 listCmd = do
