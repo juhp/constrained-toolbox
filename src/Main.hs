@@ -20,7 +20,7 @@ import System.Posix.Env (getEnvDefault)
 import System.Posix.Files (getFileStatus, isSocket)
 import System.Posix.User (getEffectiveUserName)
 import System.Process (rawSystem)
-import SimpleCmd (cmd_, cmdBool, cmdFull, error', warning, (+-+))
+import SimpleCmd (cmd_, cmdBool, cmdFull, cmdLines, error', warning, (+-+))
 import SimpleCmdArgs
 import TOML (Value(..), Table, renderTOMLError, decodeFile)
 
@@ -56,6 +56,10 @@ main = do
     , Subcommand "stop" "Stop an encapsule container" $
       stopCmd
       <$> toolboxArg
+      <*> optional projectNameOpt
+    , Subcommand "join" "Connect to a running encapsule container" $
+      joinCmd
+      <$> optional toolboxArg
       <*> optional projectNameOpt
     , Subcommand "run" "Run an encapsule container" $
     runCmd <$>
@@ -143,6 +147,52 @@ stopCmd name mprojectname = do
       cmd_ "podman" ["stop", containerName]
     else warning $ "container" +-+ containerName +-+ "not found"
 
+-- FIXME dryrun
+joinCmd :: Maybe String -> Maybe ProjectName -> IO ()
+joinCmd mbase mprojectname = do
+  case mbase of
+    Nothing -> do
+      ps <- cmdLines "podman" $ "ps" :
+            ["--filter", "name=^" ++ progname ++ "-",
+             "--format", "{{.Names}}"]
+      case ps of
+        [] -> error' "no encapsule containers running"
+        [c] -> joinContainer False c []
+        _ -> error' $ "multiple containers match:\n" ++ unlines ps
+    Just base -> do
+      containerName <- mkContainerName base mprojectname
+      exists <- cmdBool "podman" ["container", "exists", containerName]
+      if not exists
+        then do
+        ps <- cmdLines "podman" $ "ps" :
+              ["--filter", "name=^" ++ containerName,
+               "--format", "{{.Names}}"]
+        case ps of
+          [] -> error' $ "container" +-+ containerName +-+ "not found"
+          [c] -> joinContainer False c []
+          _ -> error' $ "multiple containers match:\n" ++ unlines ps
+        else do
+          (_, out, _) <- cmdFull "podman"
+            ["container", "inspect", "-f", "{{.State.Running}}", containerName] ""
+          unless (take 4 out == "true") $ do
+            putStr "start "
+            cmd_ "podman" ["start", containerName]
+          joinContainer False containerName []
+
+joinContainer :: Bool -> String -> [String] -> IO ()
+joinContainer dryrun container command = do
+  homedir <- getHomeDirectory >>= canonicalizePath
+  username <- getEffectiveUserName
+  let userCmd = if null command then ["bash"] else command
+      execCmd = ["podman", "exec", "-it", container,
+                 "runuser", "-u", username, "--",
+                 "env", "HOME=" ++ homedir] ++ userCmd
+  if dryrun
+    then putStrLn $ unwords (map shellQuote execCmd)
+    else do
+      ret <- rawSystem "podman" (drop 1 execCmd)
+      exitWith ret
+
 data RunOpts = RunOpts
   { toolbox :: String
   , vols :: [String]
@@ -216,16 +266,7 @@ runCmd (RunOpts {..}) = do
       unless noopts $
         error' "cannot give options for an existing container!"
       warning "Joining existing container"
-      username <- getEffectiveUserName
-      let userCmd = if null command then ["bash"] else command
-          execCmd = ["podman", "exec", "-it", container,
-                     "runuser", "-u", username, "--",
-                     "env", "HOME=" ++ homedir] ++ userCmd
-      if dryrun
-        then putStrLn $ unwords (map shellQuote execCmd)
-        else do
-          ret <- rawSystem "podman" (drop 1 execCmd)
-          exitWith ret
+      joinContainer dryrun container command
     else createContainer homedir mprojectDir container
   where
     createContainer homedir mprojectDir container = do

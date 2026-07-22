@@ -84,6 +84,7 @@ Available commands:
   rm                       Remove an encapsule container
   rmi                      Remove an encapsule image
   stop                     Stop an encapsule container
+  enter                    Connect to a (running) encapsule container
   run                      Run an encapsule container
 ```
 
