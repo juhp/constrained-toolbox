@@ -47,20 +47,20 @@ main = do
       pure listCapsCmd
     , Subcommand "rm" "Remove an encapsule container" $
       removeCmd
-      <$> argumentWith str "CONTAINER"
+      <$> toolboxArg
       <*> optional projectNameOpt
     , Subcommand "rmi" "Remove an encapsule image" $
       removeImageCmd
       <$> dryrunOpt
-      <*> argumentWith str "IMAGE"
+      <*> toolboxArg
     , Subcommand "stop" "Stop an encapsule container" $
       stopCmd
-      <$> argumentWith str "CONTAINER"
+      <$> toolboxArg
       <*> optional projectNameOpt
     , Subcommand "run" "Run an encapsule container" $
     runCmd <$>
     (RunOpts
-    <$> argumentWith str "TOOLBOX"
+    <$> toolboxArg
     <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
     <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variable")
     <*> many (strOptionWith 'P' "path" "DIR" "Prepend a directory to PATH inside the container")
@@ -90,6 +90,8 @@ main = do
 
     projectNameOpt = Project <$> projectOpt "Project name or path" <|>
                      Name <$> nameOpt
+
+    toolboxArg = argumentWith str "TOOLBOX"
 
 listCmd :: IO ()
 listCmd = do
