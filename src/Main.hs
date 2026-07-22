@@ -162,8 +162,8 @@ run (Opts {..})
                 cmd_ "podman" ["start", container]
                 return True
             else return False
-      home <- getHomeDirectory >>= canonicalizePath
-      debug $ "HOME:" +-+ home
+      homedir <- getHomeDirectory >>= canonicalizePath
+      debug $ "HOME:" +-+ homedir
       if running
         then do
           let noopts = and
@@ -188,7 +188,7 @@ run (Opts {..})
           let userCmd = if null command then ["bash"] else command
               execCmd = ["podman", "exec", "-it", container,
                          "runuser", "-u", username, "--",
-                         "env", "HOME=" ++ home] ++ userCmd
+                         "env", "HOME=" ++ homedir] ++ userCmd
           if dryrun
             then putStrLn $ unwords (map shellQuote execCmd)
             else do
@@ -200,10 +200,10 @@ run (Opts {..})
               when (isNothing mtoolbox) $
               error' $ "TOOLBOX argument needed to create a container" +-+
               if isJust mname then "(use '--name ^...' to reference a full container name)" else ""
-            Just toolbox -> createContainer home mprojectDir toolbox container
+            Just toolbox -> createContainer homedir mprojectDir toolbox container
   where
-    createContainer home mprojectDir toolbox container = do
-      mtemphome <- traverse (expandPath home >=> canonicalizePath) mhome
+    createContainer homedir mprojectDir toolbox container = do
+      mtemphome <- traverse (expandPath homedir >=> canonicalizePath) mhome
       let isImage = ':' `elem` toolbox
       debug $ if isImage then "image:" +-+ toolbox
               else "toolbox:" +-+ toolbox
@@ -219,8 +219,8 @@ run (Opts {..})
       homeVol <-
         case mtemphome of
           Just temphome -> do
-            createDirectoryIfMissing True home
-            return [temphome ++ ":" ++ home]
+            createDirectoryIfMissing True homedir
+            return [temphome ++ ":" ++ homedir]
           Nothing -> return []
 
       username <- getEffectiveUserName
@@ -234,7 +234,7 @@ run (Opts {..})
           allpaths = paths ++ extraPaths
           allinits = inits ++ extraInits
 
-          envParts = ("HOME=" ++ home) : pathEnvPart allpaths
+          envParts = ("HOME=" ++ homedir) : pathEnvPart allpaths
           initSetup = mkInitSetup allinits
           userCmdParts = mkUserCmd command allinits
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
@@ -250,8 +250,8 @@ run (Opts {..})
                   "chmod 440" +-+ sudoers]
           homeSetup =
             if isNothing mhome
-            then ["mkdir -p" +-+ home,
-                  "chown" +-+ username +-+ home]
+            then ["mkdir -p" +-+ homedir,
+                  "chown" +-+ username +-+ homedir]
             else []
           fallback =
             if isImage
@@ -265,24 +265,24 @@ run (Opts {..})
                   ++ fallback
 
       debug $ "setup:" +-+ setup
-      mounts <- mapM (addSelinuxLabel home) volumes
+      mounts <- mapM (addSelinuxLabel homedir) volumes
 
       let workdirPart =
             case mprojectDir of
               Just d -> ["--workdir", d]
-              Nothing | not isImage -> ["--workdir", home]
+              Nothing | not isImage -> ["--workdir", homedir]
                       | otherwise -> []
           args = "run" :
                  [ "--rm" | not keep] ++
                  [ "-it", "--userns=keep-id",
                    "--name", container, "--hostname", container,
-                   "--user", "root", "-e", "HOME=" ++ home,
+                   "--user", "root", "-e", "HOME=" ++ homedir,
                    "-e", "TERM", "-e", "COLORTERM"]
                 ++ workdirPart
                 ++ (if readonly
                     then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
                          ++ case mtemphome of
-                              Nothing -> ["--tmpfs", home]
+                              Nothing -> ["--tmpfs", homedir]
                               Just _ -> []
                     else [])
                 ++ (if nonetwork then ["--net", "none"] else [])
@@ -405,21 +405,21 @@ valueToString _ = Nothing
 
 -- FIXME rather return Mount type or triple?
 addSelinuxLabel :: FilePath -> String -> IO String
-addSelinuxLabel home spec =
+addSelinuxLabel homedir spec =
   case break (== ':') spec of
     (hostPart, []) -> do
-      hostExp <- expandPath home hostPart
+      hostExp <- expandPath homedir hostPart
       sockFile <- isSocketFile hostExp
       return $ hostExp ++ ":" ++ hostExp ++ if sockFile then "" else ":z"
     (hostPart, _:rest') -> do
-      hostExp <- expandPath home hostPart
+      hostExp <- expandPath homedir hostPart
       let (containerPart, optsPart)
             | isPathStart rest' =
                 case break (== ':') rest' of
                   (c, [])  -> (c, Nothing)
                   (c, _:o) -> (c, Just o)
             | otherwise = (hostExp, if null rest' then Nothing else Just rest')
-      containerExp <- expandPath home containerPart
+      containerExp <- expandPath homedir containerPart
       sockFile <- isSocketFile hostExp
       let labeled = case optsPart of
             Nothing ->
@@ -448,10 +448,10 @@ isSocketFile path = do
 -- path and env expansion
 
 expandPath :: FilePath -> String -> IO FilePath
-expandPath home ('~':'/':rest) = do
+expandPath homedir ('~':'/':rest) = do
   rest' <- expandEnvVars rest
-  canonicalizePath $ home </> rest'
-expandPath home "~" = return home
+  canonicalizePath $ homedir </> rest'
+expandPath homedir "~" = return homedir
 expandPath _ s = expandEnvVars s
 
 expandEnvVars :: String -> IO String
@@ -483,9 +483,9 @@ expandEnvVars (c:rest) = do
 
 resolveProject :: FilePath -> IO FilePath
 resolveProject dir = do
-  home <- getHomeDirectory >>= canonicalizePath
-  finaldir <- expandPath home dir >>= canonicalizePath
-  when (finaldir == home) $
+  homedir <- getHomeDirectory >>= canonicalizePath
+  finaldir <- expandPath homedir dir >>= canonicalizePath
+  when (finaldir == homedir) $
     error' "mounting $HOME not supported!"
   return finaldir
 
