@@ -36,29 +36,6 @@ encapsule before after = before +-+ progname +-+ after
 data Mode = Caps | DeleteImage | List | Remove | Run | Stop
   deriving Eq
 
-data Opts = Opts
-  { mtoolbox :: Maybe String
-  , vols :: [String]
-  , envs :: [String]
-  , paths :: [String]
-  , inits :: [String]
-  , caps :: [String]
-  , mhome :: Maybe FilePath
-  , mproject :: Maybe FilePath
-  , mname :: Maybe String
-  , mode :: Mode
-  , keep :: Bool
-  , readonly :: Bool
-  , nonetwork :: Bool
-  , nosudo :: Bool
-  , unique :: Bool
-  , podmanopts :: [String]
-  , debugging :: Bool
-  , dryrun :: Bool
-  , refresh :: Bool
-  , command :: [String]
-  }
-
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
@@ -91,6 +68,29 @@ main = do
     <*> switchLongWith "dryrun" "Print the podman command instead of running it"
     <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
     <*> many (argumentWith str "CMD"))
+
+data Opts = Opts
+  { mtoolbox :: Maybe String
+  , vols :: [String]
+  , envs :: [String]
+  , paths :: [String]
+  , inits :: [String]
+  , caps :: [String]
+  , mhome :: Maybe FilePath
+  , mproject :: Maybe FilePath
+  , mname :: Maybe String
+  , mode :: Mode
+  , keep :: Bool
+  , readonly :: Bool
+  , nonetwork :: Bool
+  , nosudo :: Bool
+  , unique :: Bool
+  , podmanopts :: [String]
+  , debugging :: Bool
+  , dryrun :: Bool
+  , refresh :: Bool
+  , command :: [String]
+  }
 
 run :: Opts -> IO ()
 run (Opts {..})
