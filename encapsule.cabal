@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                encapsule
-version:             0.3
+version:             0.4
 synopsis:            Run isolated toolbox containers with podman
 description:
         This tool (originally based on the toolbox-constrained project)

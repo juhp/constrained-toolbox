@@ -7,7 +7,7 @@ module Main (main) where
 import Control.Monad (unless, when, (>=>))
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (isJust, isNothing, mapMaybe)
+import Data.Maybe (isNothing, mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
@@ -30,11 +30,7 @@ import Script
 progname :: String
 progname = "encapsule"
 
-encapsule :: String -> String -> String
-encapsule before after = before +-+ progname +-+ after
-
-data Mode = Caps | DeleteImage | List | Remove | Run | Stop
-  deriving Eq
+data ProjectName = Project FilePath | Name String
 
 main :: IO ()
 main = do
@@ -42,35 +38,109 @@ main = do
   simpleCmdArgs (Just version)
     progname
     "Run a toolbox image in an isolated podman container" $
-    run <$>
-    (Opts
-    <$> optional (argumentWith str "TOOLBOX")
+    subcommands
+    -- FIXME add/separate: create/enter/run
+    [ Subcommand "list" "List encapsule images and containers" $
+      pure listCmd
+    , Subcommand "list-caps" "List encapsule images and containers" $
+      pure listCapsCmd
+    , Subcommand "rm" "Remove an encapsule container" $
+      removeCmd
+      <$> argumentWith str "CONTAINER"
+      <*> optional projectNameOpt
+    , Subcommand "rmi" "Remove an encapsule image" $
+      removeImageCmd
+      <$> dryrunOpt
+      <*> argumentWith str "IMAGE"
+    , Subcommand "stop" "Stop an encapsule container" $
+      stopCmd
+      <$> argumentWith str "CONTAINER"
+      <*> optional projectNameOpt
+    , Subcommand "run" "Run an encapsule container" $
+    runCmd <$>
+    (RunOpts
+    <$> argumentWith str "TOOLBOX"
     <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
     <*> many (strOptionWith 'e' "env" "KEY[=VALUE]" "Set or pass through an environment variable")
     <*> many (strOptionWith 'P' "path" "DIR" "Prepend a directory to PATH inside the container")
-    <*> many (strOptionWith 'i' "init" "CMD" ("A bash snippet run when creating the" `encapsule` "container"))
+    <*> many (strOptionWith 'i' "init" "CMD" "A bash snippet run when creating the encapsule container")
     <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
     <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
-    <*> optional (strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir")
-    <*> optional (strOptionWith 'n' "name" "NAME" "Container name (for creating or actions)")
-    <*> (flagLongWith' Caps "caps" "List available capabilities from the config file" <|>
-         flagLongWith' List "list" ("List" `encapsule` "images and containers") <|>
-         flagLongWith' Remove "remove" ("Remove" `encapsule` "container") <|>
-         flagLongWith' DeleteImage "delete-image" ("Remove" `encapsule` "image") <|>
-         flagLongWith Run Stop "stop" ("Stop" `encapsule` "container"))
-    <*> switchLongWith "keep" ("Keep the" `encapsule` "container after exiting")
-    <*> switchLongWith "readonly" ("Make the" `encapsule` "container filesystem read-only")
+    <*> optional projectOpt
+    <*> optional nameOpt
+    <*> switchLongWith "keep" "Keep the encapsule container after exiting"
+    <*> switchLongWith "readonly" "Make the encapsule container filesystem read-only"
     <*> switchLongWith "no-network" "Disable network access"
     <*> switchLongWith "no-sudo" "Skip passwordless sudo setup"
-    <*> switchLongWith "unique" ("Run a new" `encapsule` "container even if one is already running")
+    <*> switchLongWith "unique" "Run a new encapsule container even if one is already running"
     <*> many (strOptionLongWith "podman-opt" "OPTION" "Pass an option directly to podman")
     <*> switchLongWith "debug" "Show debug output"
-    <*> switchLongWith "dryrun" "Print the podman command instead of running it"
+    <*> dryrunOpt
     <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
-    <*> many (argumentWith str "CMD"))
+    <*> many (argumentWith str "CMD")
+    )
+    ]
+  where
+    dryrunOpt = switchLongWith "dryrun" "Print the podman command instead of running it"
 
-data Opts = Opts
-  { mtoolbox :: Maybe String
+    projectOpt = strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir"
+
+    nameOpt = strOptionWith 'n' "name" "NAME" "Container name (for creating or actions)"
+
+    projectNameOpt = Project <$> projectOpt <|> Name <$> nameOpt
+
+listCmd :: IO ()
+listCmd = do
+  cmd_ "podman" ["images",
+                 "--filter", "reference=" ++ progname ++ "-*",
+                 "--format", "{{.Repository}}  {{.Size}}  {{.Created}}"]
+  cmd_ "podman" ["ps", "-a",
+                 "--filter", "name=^" ++ progname ++ "-",
+                 "--format", "{{.Names}}  {{.Status}}"]
+
+listCapsCmd :: IO ()
+listCapsCmd = do
+  config <- loadConfig
+  let capabilities = getCapabilities config
+  if Map.null capabilities
+    then putStrLn "No capabilities defined"
+    else do
+      putStrLn "Available capabilities:"
+      mapM_ (putStrLn . ("  " ++) . T.unpack) $ Map.keys capabilities
+
+removeCmd :: String -> Maybe ProjectName -> IO ()
+removeCmd toolbox mprojectname = do
+  containerName <- mkContainerName toolbox mprojectname
+  exists <- cmdBool "podman" ["container", "exists", containerName]
+  if exists
+    then do
+      (_, out, _) <- cmdFull "podman"
+        ["container", "inspect", "-f", "{{.State.Running}}", containerName] ""
+      when (take 4 out == "true") $ do
+        putStr "stopping "
+        cmd_ "podman" ["stop", containerName]
+      putStr "rm "
+      cmd_ "podman" ["rm", containerName]
+    else warning $ "container" +-+ containerName +-+ "not found"
+
+removeImageCmd :: Bool -> String -> IO ()
+removeImageCmd dryrun name =
+  when dryrun $
+  removeImage (progname ++ "-" ++ containerBase name)
+
+-- FIXME dryrun
+stopCmd :: String -> Maybe ProjectName -> IO ()
+stopCmd name mprojectname = do
+  containerName <- mkContainerName name mprojectname
+  exists <- cmdBool "podman" ["container", "exists", containerName]
+  if exists
+    then do
+      putStr "stop "
+      cmd_ "podman" ["stop", containerName]
+    else warning $ "container" +-+ containerName +-+ "not found"
+
+data RunOpts = RunOpts
+  { toolbox :: String
   , vols :: [String]
   , envs :: [String]
   , paths :: [String]
@@ -79,7 +149,6 @@ data Opts = Opts
   , mhome :: Maybe FilePath
   , mproject :: Maybe FilePath
   , mname :: Maybe String
-  , mode :: Mode
   , keep :: Bool
   , readonly :: Bool
   , nonetwork :: Bool
@@ -92,117 +161,70 @@ data Opts = Opts
   , command :: [String]
   }
 
-run :: Opts -> IO ()
-run (Opts {..})
-  | mode == Caps = do
-      config <- loadConfig
-      let capabilities = getCapabilities config
-      if Map.null capabilities
-        then putStrLn "No capabilities defined"
-        else do
-          putStrLn "Available capabilities:"
-          mapM_ (putStrLn . ("  " ++) . T.unpack) $ Map.keys capabilities
-  | mode == List = do
-      cmd_ "podman" ["images",
-                     "--filter", "reference=" ++ progname ++ "-*",
-                     "--format", "{{.Repository}}  {{.Size}}  {{.Created}}"]
-      cmd_ "podman" ["ps", "-a",
-                     "--filter", "name=^" ++ progname ++ "-",
-                     "--format", "{{.Names}}  {{.Status}}"]
-  | mode == DeleteImage =
-      when dryrun $
-      removeImage (progname ++ "-" ++ containerBase)
-  | mode == Remove = do
-      mprojectDir <- traverse resolveProject mproject
-      let containerName = mkContainerName mname containerBase mprojectDir
-      exists <- cmdBool "podman" ["container", "exists", containerName]
+runCmd :: RunOpts -> IO ()
+runCmd (RunOpts {..}) = do
+  mprojectDir <- traverse resolveProject mproject
+  containerName <-
+    mkContainerName toolbox $ maybe (Project <$> mproject) (Just . Name) mname
+  container <-
+    if unique
+    then do
+      pid <- getProcessID
+      return $ containerName ++ "-" ++ show pid
+    else return containerName
+  debug $ "container:" +-+ container
+  running <-
+    if unique
+    then return False
+    else do
+      exists <- cmdBool "podman" ["container", "exists", container]
+      debug $ container +-+ "exists"
       if exists
         then do
           (_, out, _) <- cmdFull "podman"
-            ["container", "inspect", "-f", "{{.State.Running}}", containerName] ""
-          when (take 4 out == "true") $ do
-            putStr "stopping "
-            cmd_ "podman" ["stop", containerName]
-          putStr "rm "
-          cmd_ "podman" ["rm", containerName]
-        else warning $ "container" +-+ containerName +-+ "not found"
-  | mode == Stop = do
-      mprojectDir <- traverse resolveProject mproject
-      let containerName = mkContainerName mname containerBase mprojectDir
-      exists <- cmdBool "podman" ["container", "exists", containerName]
-      if exists
-        then do
-          putStr "stop "
-          cmd_ "podman" ["stop", containerName]
-        else warning $ "container" +-+ containerName +-+ "not found"
-  | otherwise = do
-      mprojectDir <- traverse resolveProject mproject
-      let containerName = mkContainerName mname containerBase mprojectDir
-      container <-
-        if unique
-        then do
-          pid <- getProcessID
-          return $ containerName ++ "-" ++ show pid
-        else return containerName
-      debug $ "container:" +-+ container
-      running <-
-        if unique
-        then return False
-        else do
-          exists <- cmdBool "podman" ["container", "exists", container]
-          debug $ container +-+ "exists"
-          if exists
-            then do
-              (_, out, _) <- cmdFull "podman"
-                ["container", "inspect", "-f", "{{.State.Running}}", container] ""
-              if take 4 out == "true"
-                then return True
-                else do
-                putStr "start "
-                cmd_ "podman" ["start", container]
-                return True
-            else return False
-      homedir <- getHomeDirectory >>= canonicalizePath
-      debug $ "HOME:" +-+ homedir
-      if running
-        then do
-          let noopts = and
-                [ null vols
-                , null envs
-                , null paths
-                , null inits
-                , null caps
-                , isNothing mproject || isNothing mname
-                , isNothing mhome
-                , not keep
-                , not readonly
-                , not nonetwork
-                , not nosudo
-                , null podmanopts
-                , not refresh
-                ]
-          unless noopts $
-            error' "cannot give options for an existing container!"
-          warning "Joining existing container"
-          username <- getEffectiveUserName
-          let userCmd = if null command then ["bash"] else command
-              execCmd = ["podman", "exec", "-it", container,
-                         "runuser", "-u", username, "--",
-                         "env", "HOME=" ++ homedir] ++ userCmd
-          if dryrun
-            then putStrLn $ unwords (map shellQuote execCmd)
+            ["container", "inspect", "-f", "{{.State.Running}}", container] ""
+          if take 4 out == "true"
+            then return True
             else do
-              ret <- rawSystem "podman" (drop 1 execCmd)
-              exitWith ret
+            putStr "start "
+            cmd_ "podman" ["start", container]
+            return True
+        else return False
+  homedir <- getHomeDirectory >>= canonicalizePath
+  debug $ "HOME:" +-+ homedir
+  if running
+    then do
+      let noopts = and
+            [ null vols
+            , null envs
+            , null paths
+            , null inits
+            , null caps
+            , isNothing mproject || isNothing mname
+            , isNothing mhome
+            , not keep
+            , not readonly
+            , not nonetwork
+            , not nosudo
+            , null podmanopts
+            , not refresh
+            ]
+      unless noopts $
+        error' "cannot give options for an existing container!"
+      warning "Joining existing container"
+      username <- getEffectiveUserName
+      let userCmd = if null command then ["bash"] else command
+          execCmd = ["podman", "exec", "-it", container,
+                     "runuser", "-u", username, "--",
+                     "env", "HOME=" ++ homedir] ++ userCmd
+      if dryrun
+        then putStrLn $ unwords (map shellQuote execCmd)
         else do
-          case mtoolbox of
-            Nothing ->
-              when (isNothing mtoolbox) $
-              error' $ "TOOLBOX argument needed to create a container" +-+
-              if isJust mname then "(use '--name ^...' to reference a full container name)" else ""
-            Just toolbox -> createContainer homedir mprojectDir toolbox container
+          ret <- rawSystem "podman" (drop 1 execCmd)
+          exitWith ret
+    else createContainer homedir mprojectDir container
   where
-    createContainer homedir mprojectDir toolbox container = do
+    createContainer homedir mprojectDir container = do
       mtemphome <- traverse (expandPath homedir >=> canonicalizePath) mhome
       let isImage = ':' `elem` toolbox
       debug $ if isImage then "image:" +-+ toolbox
@@ -298,15 +320,12 @@ run (Opts {..})
           ret <- rawSystem "podman" args
           exitWith ret
 
-    containerBase =
-      case mtoolbox of
-        Just toolbox ->
-          map (\c -> if c == ':' then '-' else c) toolbox
-        Nothing -> error' "no TOOLBOX arg given"
-
     debug msg = when debugging $ warning $ "debug:" +-+ msg
 
 -- image management
+
+containerBase :: String -> String
+containerBase = map (\c -> if c == ':' then '-' else c)
 
 commitToolbox :: Bool -> String -> Bool -> IO String
 commitToolbox dryrun toolbox refresh = do
@@ -499,12 +518,17 @@ sanitizeName = map (\c -> if c `elem` nameChars then c else '-')
 projectSuffix :: FilePath -> String
 projectSuffix = ('-' :) . sanitizeName . takeFileName
 
-mkContainerName :: Maybe String -> String -> Maybe FilePath -> String
-mkContainerName mname base mprojectDir =
-  case mname of
-    Just ('^':n) -> n
-    Just n -> progname ++ "-" ++ n
-    Nothing -> progname ++ "-" ++ base ++ maybe "" projectSuffix mprojectDir
+mkContainerName :: String -> Maybe ProjectName -> IO String
+mkContainerName base mprojectname = do
+  case mprojectname of
+    Nothing -> return $ progname ++ '-' : base
+    Just mp ->
+      case mp of
+        Name ('^':n) -> return n
+        Name n -> return $ progname ++ '-' : n
+        Project p -> do
+          projectDir <- resolveProject p
+          return $ progname  ++ '-' : projectSuffix projectDir
 
 -- shell command construction
 
