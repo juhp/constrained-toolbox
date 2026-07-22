@@ -30,6 +30,7 @@ import Script
 progname :: String
 progname = "encapsule"
 
+-- FIXME maybe rename to Workdir?
 data ProjectName = Project FilePath | Name String
 
 main :: IO ()
@@ -83,7 +84,7 @@ main = do
   where
     dryrunOpt = switchLongWith "dryrun" "Print the podman command instead of running it"
 
-    projectOpt = strOptionWith 'p' "project" "DIR" "Mount a project directory and set as workdir"
+    projectOpt = strOptionWith 'w' "workdir" "DIR" "Mount a (project) directory as a workdir"
 
     nameOpt = strOptionWith 'n' "name" "NAME" "Container name (for creating or actions)"
 
@@ -515,8 +516,8 @@ sanitizeName = map (\c -> if c `elem` nameChars then c else '-')
   where
     nameChars = ['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "_.-"
 
-projectSuffix :: FilePath -> String
-projectSuffix = ('-' :) . sanitizeName . takeFileName
+workProjectName :: FilePath -> String
+workProjectName = sanitizeName . takeFileName
 
 mkContainerName :: String -> Maybe ProjectName -> IO String
 mkContainerName base mprojectname = do
@@ -528,7 +529,7 @@ mkContainerName base mprojectname = do
         Name n -> return $ progname ++ '-' : n
         Project p -> do
           projectDir <- resolveProject p
-          return $ progname  ++ '-' : projectSuffix projectDir
+          return $ progname ++ '-' : base ++ '-' : workProjectName projectDir
 
 -- shell command construction
 
