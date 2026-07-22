@@ -4,7 +4,7 @@
 
 module Main (main) where
 
-import Control.Monad (unless, when)
+import Control.Monad (unless, when, (>=>))
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust, isNothing, mapMaybe)
@@ -113,7 +113,7 @@ run (Opts {..})
       when dryrun $
       removeImage (progname ++ "-" ++ containerBase)
   | mode == Remove = do
-      mprojectDir <- resolveProjectDir mproject
+      mprojectDir <- traverse resolveProject mproject
       let containerName = mkContainerName mname containerBase mprojectDir
       exists <- cmdBool "podman" ["container", "exists", containerName]
       if exists
@@ -127,7 +127,7 @@ run (Opts {..})
           cmd_ "podman" ["rm", containerName]
         else warning $ "container" +-+ containerName +-+ "not found"
   | mode == Stop = do
-      mprojectDir <- resolveProjectDir mproject
+      mprojectDir <- traverse resolveProject mproject
       let containerName = mkContainerName mname containerBase mprojectDir
       exists <- cmdBool "podman" ["container", "exists", containerName]
       if exists
@@ -136,7 +136,7 @@ run (Opts {..})
           cmd_ "podman" ["stop", containerName]
         else warning $ "container" +-+ containerName +-+ "not found"
   | otherwise = do
-      mprojectDir <- resolveProjectDir mproject
+      mprojectDir <- traverse resolveProject mproject
       let containerName = mkContainerName mname containerBase mprojectDir
       container <-
         if unique
@@ -203,10 +203,7 @@ run (Opts {..})
             Just toolbox -> createContainer home mprojectDir toolbox container
   where
     createContainer home mprojectDir toolbox container = do
-      mhomeDir <-
-        case mhome of
-          Just dir -> Just <$> checkMountPoint home dir
-          Nothing -> return Nothing
+      mtemphome <- traverse (expandPath home >=> canonicalizePath) mhome
       let isImage = ':' `elem` toolbox
       debug $ if isImage then "image:" +-+ toolbox
               else "toolbox:" +-+ toolbox
@@ -220,24 +217,24 @@ run (Opts {..})
         resolveCapabilities capabilities caps
 
       homeVol <-
-        case mhomeDir of
-          Just d -> do
-            createDirectoryIfMissing True d
-            return [d ++ ":" ++ home]
+        case mtemphome of
+          Just temphome -> do
+            createDirectoryIfMissing True home
+            return [temphome ++ ":" ++ home]
           Nothing -> return []
 
       username <- getEffectiveUserName
 
       let projectVol =
             case mprojectDir of
-              Just d -> [d ++ ":" ++ rootDest d]
+              Just d -> [d ++ ':' : d]
               Nothing -> []
           volumes = homeVol ++ vols ++ extraVols ++ projectVol
           envVars = envs ++ extraEnvs
           allpaths = paths ++ extraPaths
           allinits = inits ++ extraInits
 
-          envParts = ("HOME=" ++ shellQuote home) : pathEnvPart allpaths
+          envParts = ("HOME=" ++ home) : pathEnvPart allpaths
           initSetup = mkInitSetup allinits
           userCmdParts = mkUserCmd command allinits
           runuserCmd = "env" +-+ unwords (envParts ++ map shellQuote userCmdParts)
@@ -253,8 +250,8 @@ run (Opts {..})
                   "chmod 440" +-+ sudoers]
           homeSetup =
             if isNothing mhome
-            then ["mkdir -p" +-+ shellQuote home,
-                  "chown" +-+ username +-+ shellQuote home]
+            then ["mkdir -p" +-+ home,
+                  "chown" +-+ username +-+ home]
             else []
           fallback =
             if isImage
@@ -272,19 +269,19 @@ run (Opts {..})
 
       let workdirPart =
             case mprojectDir of
-              Just d -> ["--workdir", rootDest d]
+              Just d -> ["--workdir", d]
               Nothing | not isImage -> ["--workdir", home]
                       | otherwise -> []
           args = "run" :
                  [ "--rm" | not keep] ++
                  [ "-it", "--userns=keep-id",
-                 "--name", container, "--hostname", container,
-                 "--user", "root", "-e", "HOME=" ++ home,
-                 "-e", "TERM", "-e", "COLORTERM"]
+                   "--name", container, "--hostname", container,
+                   "--user", "root", "-e", "HOME=" ++ home,
+                   "-e", "TERM", "-e", "COLORTERM"]
                 ++ workdirPart
                 ++ (if readonly
                     then ["--read-only", "--tmpfs", "/tmp", "--tmpfs", "/run"]
-                         ++ case mhomeDir of
+                         ++ case mtemphome of
                               Nothing -> ["--tmpfs", home]
                               Just _ -> []
                     else [])
@@ -406,6 +403,7 @@ valueToString _ = Nothing
 
 -- SELinux labeling
 
+-- FIXME rather return Mount type or triple?
 addSelinuxLabel :: FilePath -> String -> IO String
 addSelinuxLabel home spec =
   case break (== ':') spec of
@@ -449,13 +447,10 @@ isSocketFile path = do
 
 -- path and env expansion
 
-rootDest :: FilePath -> FilePath
-rootDest dir = '/' : takeFileName dir
-
-expandPath :: FilePath -> String -> IO String
+expandPath :: FilePath -> String -> IO FilePath
 expandPath home ('~':'/':rest) = do
   rest' <- expandEnvVars rest
-  return $ home </> rest'
+  canonicalizePath $ home </> rest'
 expandPath home "~" = return home
 expandPath _ s = expandEnvVars s
 
@@ -486,18 +481,13 @@ expandEnvVars (c:rest) = do
   rest' <- expandEnvVars rest
   return (c : rest')
 
-checkMountPoint :: FilePath -> FilePath -> IO FilePath
-checkMountPoint home dir = do
+resolveProject :: FilePath -> IO FilePath
+resolveProject dir = do
+  home <- getHomeDirectory >>= canonicalizePath
   finaldir <- expandPath home dir >>= canonicalizePath
   when (finaldir == home) $
     error' "mounting $HOME not supported!"
   return finaldir
-
-resolveProjectDir :: Maybe FilePath -> IO (Maybe FilePath)
-resolveProjectDir Nothing = return Nothing
-resolveProjectDir (Just dir) = do
-  home <- getHomeDirectory >>= canonicalizePath
-  Just <$> checkMountPoint home dir
 
 -- container naming
 
@@ -506,19 +496,15 @@ sanitizeName = map (\c -> if c `elem` nameChars then c else '-')
   where
     nameChars = ['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "_.-"
 
-projectSuffix :: Maybe FilePath -> String
-projectSuffix Nothing = ""
-projectSuffix (Just dir) =
-  case sanitizeName (takeFileName dir) of
-    "" -> ""
-    name -> "-" ++ name
+projectSuffix :: FilePath -> String
+projectSuffix = ('-' :) . sanitizeName . takeFileName
 
 mkContainerName :: Maybe String -> String -> Maybe FilePath -> String
 mkContainerName mname base mprojectDir =
   case mname of
     Just ('^':n) -> n
     Just n -> progname ++ "-" ++ n
-    Nothing -> progname ++ "-" ++ base ++ projectSuffix mprojectDir
+    Nothing -> progname ++ "-" ++ base ++ maybe "" projectSuffix mprojectDir
 
 -- shell command construction
 
