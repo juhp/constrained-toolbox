@@ -59,7 +59,8 @@ main = do
       <*> optional projectNameOpt
     , Subcommand "enter" "Connect to a (running) encapsule container" $
       enterCmd
-      <$> optional toolboxArg
+      <$> dryrunOpt
+      <*> optional toolboxArg
       <*> optional projectNameOpt
     , Subcommand "run" "Run an encapsule container" $
     runCmd <$>
@@ -147,9 +148,8 @@ stopCmd name mprojectname = do
       cmd_ "podman" ["stop", containerName]
     else warning $ "container" +-+ containerName +-+ "not found"
 
--- FIXME dryrun
-enterCmd :: Maybe String -> Maybe ProjectName -> IO ()
-enterCmd mbase mprojectname = do
+enterCmd :: Bool -> Maybe String -> Maybe ProjectName -> IO ()
+enterCmd dryrun mbase mprojectname = do
   regexp <-
     case mprojectname of
       Nothing -> return $ '^' : progname ++ "-"
@@ -162,7 +162,7 @@ enterCmd mbase mprojectname = do
          "--format", "{{.Names}}"]
   case ps of
     [] -> error' "no encapsule containers running"
-    [c] -> enterContainer False c []
+    [c] -> enterContainer dryrun c []
     _ -> error' $ "multiple running containers match:\n" ++ unlines ps
 
     -- FIXME lost starting up a stopped exact match
@@ -176,7 +176,7 @@ enterCmd mbase mprojectname = do
     --            "--format", "{{.Names}}"]
     --     case ps of
     --       [] -> error' $ "container" +-+ containerName +-+ "not found"
-    --       [c] -> enterContainer False c []
+    --       [c] -> enterContainer dryrun c []
     --       _ -> error' $ "multiple containers match:\n" ++ unlines ps
     --     else do
     --       (_, out, _) <- cmdFull "podman"
@@ -184,7 +184,7 @@ enterCmd mbase mprojectname = do
     --       unless (take 4 out == "true") $ do
     --         putStr "start "
     --         cmd_ "podman" ["start", containerName]
-    --       enterContainer False containerName []
+    --       enterContainer dryrun containerName []
 
 enterContainer :: Bool -> String -> [String] -> IO ()
 enterContainer dryrun container command = do
