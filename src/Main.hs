@@ -109,7 +109,8 @@ listCmd :: IO ()
 listCmd = do
   cmd_ "podman" ["images",
                  "--filter", "reference=" ++ progname ++ "-*",
-                 "--format", "{{.Repository}}  {{.Size}}  {{.Created}}"]
+                 "--format", "{{.Repository}}:{{.Tag}}  {{.Size}}  {{.Created}}"]
+  putChar '\n'
   cmd_ "podman" ["ps", "-a",
                  "--filter", "name=^" ++ progname +=+ "",
                  "--format", "{{.Names}}  {{.Status}}"]
