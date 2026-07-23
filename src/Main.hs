@@ -152,8 +152,15 @@ joinCmd :: Maybe String -> Maybe ProjectName -> IO ()
 joinCmd mbase mprojectname = do
   case mbase of
     Nothing -> do
+      regexp <-
+        case mprojectname of
+          Nothing -> return $ '^' : progname ++ "-"
+          Just (Name n) -> return $ '^' : progname ++ '-' : n
+          Just (Project p) -> do
+            projectDir <- resolveProject p
+            return $ progname ++ '-' : ".*" ++ '-' : workProjectName projectDir
       ps <- cmdLines "podman" $ "ps" :
-            ["--filter", "name=^" ++ progname ++ "-",
+            ["--filter", "name=" ++ regexp,
              "--format", "{{.Names}}"]
       case ps of
         [] -> error' "no encapsule containers running"
