@@ -274,7 +274,8 @@ runCmd (RunOpts {..}) = do
     createContainer homedir mprojectDir container = do
       mtemphome <- traverse (expandPath homedir >=> canonicalizePath) mhome
       let isImage = ':' `elem` toolbox
-      debug $ if isImage then "image:" +-+ toolbox
+      debug $ if isImage
+              then "image:" +-+ toolbox
               else "toolbox:" +-+ toolbox
       image <- if isImage
                then return toolbox
