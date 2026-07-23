@@ -10,7 +10,9 @@ import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, isNothing, mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
+import System.Directory (canonicalizePath, createDirectoryIfMissing,
+                         doesDirectoryExist, doesFileExist, doesPathExist,
+                         getHomeDirectory)
 import System.Environment.XDG.BaseDir (getUserConfigFile)
 import System.Exit (exitWith)
 import System.FilePath ((</>), takeFileName)
@@ -287,11 +289,15 @@ runCmd (RunOpts {..}) = do
 
       username <- getEffectiveUserName
 
-      let projectVol =
-            case mprojectDir of
-              Just d -> [d ++ ':' : d]
-              Nothing -> []
-          volumes = homeVol ++ vols ++ extraVols ++ projectVol
+      projectVol <-
+        case mprojectDir of
+          Just d -> do
+            exists <- doesDirectoryExist d
+            if exists
+              then return [d ++ ':' : d]
+              else error $ "workdir not found:" +-+ d
+          Nothing -> return []
+      let volumes = homeVol ++ vols ++ extraVols ++ projectVol
           envVars = envs ++ extraEnvs
           allpaths = paths ++ extraPaths
           allinits = inits ++ extraInits
