@@ -327,13 +327,16 @@ runCmd (RunOpts {..}) = do
             then ["mkdir -p" +-+ homedir,
                   "chown" +-+ username +-+ homedir]
             else []
+          -- podman --workdir requires the path to exist at start; for no
+          -- --workdir/--project, mkdir home first then cd (see workdirPart)
+          cdHome = ["cd" +-+ shellQuote homedir | isNothing mprojectDir]
           fallback =
             if isImage
             then " || exec" +-+ runuserCmd
             else ""
           trace = ["set -x" | debugging]
           setup = intercalate " && "
-                  (trace ++ installSetup ++ sudoSetup ++ homeSetup ++
+                  (trace ++ installSetup ++ sudoSetup ++ homeSetup ++ cdHome ++
                   [initSetup | not (null allinits)] ++
                   ["exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd])
                   ++ fallback
@@ -344,7 +347,7 @@ runCmd (RunOpts {..}) = do
       let workdirPart =
             case mprojectDir of
               Just d -> ["--workdir", d]
-              Nothing -> ["--workdir", homedir]
+              Nothing -> []
           args = "run" :
                  [ "--rm" | not keep] ++
                  [ "-it", "--userns=keep-id",
