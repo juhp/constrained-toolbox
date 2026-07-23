@@ -338,7 +338,7 @@ runCmd (RunOpts {..}) = do
                   ["exec runuser -u" +-+ username +-+ "--" +-+ runuserCmd])
                   ++ fallback
 
-      debug $ "setup:" +-+ setup
+      unless dryrun $ debug $ "setup:" +-+ setup
       mounts <- mapM (addSelinuxLabel homedir) volumes
 
       let workdirPart =
