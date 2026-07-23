@@ -60,6 +60,7 @@ main = do
     , Subcommand "enter" "Connect to a (running) encapsule container" $
       enterCmd
       <$> dryrunOpt
+      <*> pure True
       <*> optional toolboxArg
       <*> optional projectNameOpt
     , Subcommand "run" "Run an encapsule container" $
@@ -147,8 +148,8 @@ stopCmd name mprojectname = do
       cmd_ "podman" ["stop", containerName]
     else warning $ "container" +-+ containerName +-+ "not found"
 
-enterCmd :: Bool -> Maybe String -> Maybe ProjectName -> IO ()
-enterCmd dryrun mbase mprojectname = do
+enterCmd :: Bool -> Bool -> Maybe String -> Maybe ProjectName -> IO ()
+enterCmd dryrun running mbase mprojectname = do
   regexp <-
     case mprojectname of
       Nothing -> return $ '^' : progname ++ "-"
@@ -157,38 +158,26 @@ enterCmd dryrun mbase mprojectname = do
         projectDir <- resolveProject p
         return $ progname ++ '-' : fromMaybe ".*" mbase ++ '-' : workProjectName projectDir
   ps <- cmdLines "podman" $ "ps" :
+        ["-a" | not running] ++
         ["--filter", "name=" ++ regexp,
          "--format", "{{.Names}}"]
   case ps of
-    [] -> error' "no encapsule containers running"
-    [c] -> enterContainer dryrun c []
+    [] ->
+      if running
+      then do
+        warning "no encapsule container running"
+        enterCmd dryrun False mbase mprojectname
+      else error' "no encapsule container found"
+    [c] -> enterContainer dryrun True c []
     _ -> error' $ "multiple running containers match:\n" ++ unlines ps
 
-    -- FIXME lost starting up a stopped exact match
-    -- Just base -> do
-    --   containerName <- mkContainerName base mprojectname
-    --   exists <- cmdBool "podman" ["container", "exists", containerName]
-    --   if not exists
-    --     then do
-    --     ps <- cmdLines "podman" $ "ps" :
-    --           ["--filter", "name=^" ++ containerName,
-    --            "--format", "{{.Names}}"]
-    --     case ps of
-    --       [] -> error' $ "container" +-+ containerName +-+ "not found"
-    --       [c] -> enterContainer dryrun c []
-    --       _ -> error' $ "multiple containers match:\n" ++ unlines ps
-    --     else do
-    --       (_, out, _) <- cmdFull "podman"
-    --         ["container", "inspect", "-f", "{{.State.Running}}", containerName] ""
-    --       unless (take 4 out == "true") $ do
-    --         putStr "start "
-    --         cmd_ "podman" ["start", containerName]
-    --       enterContainer dryrun containerName []
-
-enterContainer :: Bool -> String -> [String] -> IO ()
-enterContainer dryrun container command = do
+enterContainer :: Bool -> Bool -> String -> [String] -> IO ()
+enterContainer dryrun running container command = do
   homedir <- getHomeDirectory >>= canonicalizePath
   username <- getEffectiveUserName
+  unless running $ do
+    putStr "start "
+    cmd_ "podman" ["start", container]
   let userCmd = if null command then ["bash"] else command
       execCmd = ["podman", "exec", "-it", container,
                  "runuser", "-u", username, "--",
@@ -272,7 +261,7 @@ runCmd (RunOpts {..}) = do
       unless noopts $
         error' "cannot give options for an existing container!"
       warning "Entering existing container"
-      enterContainer dryrun container command
+      enterContainer dryrun True container command
     else createContainer homedir mprojectDir container
   where
     createContainer homedir mprojectDir container = do
