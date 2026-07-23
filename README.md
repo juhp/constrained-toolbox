@@ -94,7 +94,7 @@ Available commands:
 ```
 Usage: encapsule run TOOLBOX [-v|--volume HOST:CONTAINER[:opts]]
                      [-e|--env KEY[=VALUE]] [-P|--path DIR] [-i|--init CMD]
-                     [--cap NAME] [--home DIR] [-w|--workdir DIR]
+                     [--cap NAME] [--home DIR] [-p|--project DIR]
                      [-n|--name NAME] [--keep] [--readonly] [--no-network]
                      [--no-sudo] [--unique] [--podman-opt OPTION] [--debug]
                      [--dryrun] [--refresh] [CMD]
@@ -111,8 +111,9 @@ Available options:
   --cap NAME               Enable a capability from the config file
   --home DIR               Mount a directory as a writable home (created if
                            missing)
-  -w,--workdir DIR         Mount a (project) directory as a workdir
-  -n,--name NAME           Optional container name (for creating or actions)
+  -p,--project DIR         Mount a (project) directory as a workdir
+  -n,--name NAME           Optional container name (prefix with '^' prefix to
+                           skip 'encapsule-' prefix)
   --keep                   Keep the encapsule container after exiting
   --readonly               Make the encapsule container filesystem read-only
   --no-network             Disable network access

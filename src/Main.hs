@@ -32,7 +32,6 @@ import Script
 progname :: String
 progname = "encapsule"
 
--- FIXME maybe rename to Workdir?
 data ProjectName = Project FilePath | Name String
 
 main :: IO ()
@@ -75,7 +74,7 @@ main = do
       <*> many (strOptionWith 'i' "init" "CMD" "A bash snippet run when creating the encapsule container")
       <*> many (strOptionLongWith "cap" "NAME" "Enable a capability from the config file")
       <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
-      <*> optional (projectOpt "Mount a (project) directory as a workdir")
+      <*> optional (projectOpt "Mount a (project) directory as workdir")
       <*> optional nameOpt
       <*> switchLongWith "keep" "Keep the encapsule container after exiting"
       <*> switchLongWith "readonly" "Make the encapsule container filesystem read-only"
@@ -91,7 +90,7 @@ main = do
   where
     dryrunOpt = switchLongWith "dryrun" "Print the podman command instead of running it"
 
-    projectOpt desc = strOptionWith 'w' "workdir" "DIR" desc
+    projectOpt desc = strOptionWith 'p' "project" "DIR" desc
 
     nameOpt = strOptionWith 'n' "name" "NAME" "Optional container name (prefix with '^' prefix to skip 'encapsule-' prefix)"
 
@@ -295,7 +294,7 @@ runCmd (RunOpts {..}) = do
             exists <- doesDirectoryExist d
             if exists
               then return [d ++ ':' : d]
-              else error $ "workdir not found:" +-+ d
+              else error $ "project dir not found:" +-+ d
           Nothing -> return []
       let volumes = homeVol ++ vols ++ extraVols ++ projectVol
           envVars = envs ++ extraEnvs
