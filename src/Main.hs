@@ -142,7 +142,7 @@ removeCmd toolbox mprojectname = do
 removeImageCmd :: Bool -> String -> IO ()
 removeImageCmd dryrun name =
   when dryrun $
-  removeImage (progname +=+ containerBase name)
+  removeImage (progname +=+ name)
 
 -- FIXME dryrun
 stopCmd :: String -> Maybe ProjectName -> IO ()
@@ -376,9 +376,6 @@ runCmd (RunOpts {..}) = do
 
 -- image management
 
-containerBase :: String -> String
-containerBase = map (\c -> if c == ':' then '-' else c)
-
 commitToolbox :: Bool -> String -> Bool -> IO String
 commitToolbox dryrun toolbox refresh = do
   let image = progname +=+ toolbox
@@ -573,14 +570,16 @@ workProjectName = sanitizeName . takeFileName
 mkContainerName :: String -> Maybe ProjectName -> IO String
 mkContainerName base mprojectname = do
   case mprojectname of
-    Nothing -> return $ progname +=+ base
+    Nothing -> return $ progname +=+ sanebase
     Just mp ->
       case mp of
         Name ('^':n) -> return n
         Name n -> return $ progname +=+ n
         Project p -> do
           projectDir <- resolveProject p
-          return $ progname ++ '-' : base +=+ workProjectName projectDir
+          return $ progname ++ '-' : sanebase +=+ workProjectName projectDir
+  where
+    sanebase = sanitizeName base
 
 -- shell command construction
 
