@@ -65,8 +65,24 @@ main = do
       <*> pure True
       <*> optional toolboxArg
       <*> optional projectNameOpt
-    , Subcommand "run" "Run an encapsule container" $
-      fmap runCmd $
+    , Subcommand "start" "Create an encapsule container" $
+      runCmd <$> runOpts True
+    , Subcommand "run" "Run a temporary encapsule container" $
+      runCmd <$> runOpts False
+    ]
+  where
+    dryrunOpt = switchLongWith "dryrun" "Print the podman command instead of running it"
+
+    projectOpt = strOptionWith 'p' "project" "DIR"
+
+    nameOpt = strOptionWith 'n' "name" "NAME" "Optional container name (prefix with '^' prefix to skip 'encapsule-' prefix)"
+
+    projectNameOpt = Project <$> projectOpt "Project name or path" <|>
+                     Name <$> nameOpt
+
+    toolboxArg = argumentWith str "TOOLBOX"
+
+    runOpts keep =
       RunOpts
       <$> toolboxArg
       <*> many (strOptionWith 'v' "volume" "HOST:CONTAINER[:opts]" "Bind mounts (default to selinux :z)")
@@ -77,7 +93,7 @@ main = do
       <*> optional (strOptionLongWith "home" "DIR" "Mount a directory as a writable home (created if missing)")
       <*> optional (projectOpt "Mount a (project) directory as workdir")
       <*> optional nameOpt
-      <*> switchLongWith "keep" "Keep the encapsule container after exiting"
+      <*> pure keep
       <*> switchLongWith "readonly" "Make the encapsule container filesystem read-only"
       <*> switchLongWith "no-network" "Disable network access"
       <*> switchLongWith "no-sudo" "Skip passwordless sudo setup"
@@ -87,18 +103,7 @@ main = do
       <*> dryrunOpt
       <*> switchLongWith "refresh" "Force re-commit of the toolbox image"
       <*> many (argumentWith str "CMD")
-    ]
-  where
-    dryrunOpt = switchLongWith "dryrun" "Print the podman command instead of running it"
 
-    projectOpt desc = strOptionWith 'p' "project" "DIR" desc
-
-    nameOpt = strOptionWith 'n' "name" "NAME" "Optional container name (prefix with '^' prefix to skip 'encapsule-' prefix)"
-
-    projectNameOpt = Project <$> projectOpt "Project name or path" <|>
-                     Name <$> nameOpt
-
-    toolboxArg = argumentWith str "TOOLBOX"
 
 listCmd :: IO ()
 listCmd = do
