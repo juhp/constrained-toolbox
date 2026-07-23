@@ -46,6 +46,7 @@ executable encapsule
                      , filepath
                      , containers
                      , process
+                     , safe
                      , shell-monad
                      , simple-cmd >= 0.2.3
                      , simple-cmd-args >= 0.1.8

@@ -10,6 +10,7 @@ import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, isNothing, mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import Safe (headMay, lastMay)
 import System.Directory (canonicalizePath, createDirectoryIfMissing,
                          doesDirectoryExist, doesFileExist, doesPathExist,
                          getHomeDirectory)
@@ -105,7 +106,7 @@ listCmd = do
                  "--filter", "reference=" ++ progname ++ "-*",
                  "--format", "{{.Repository}}  {{.Size}}  {{.Created}}"]
   cmd_ "podman" ["ps", "-a",
-                 "--filter", "name=^" ++ progname ++ "-",
+                 "--filter", "name=^" ++ progname +=+ "",
                  "--format", "{{.Names}}  {{.Status}}"]
 
 listCapsCmd :: IO ()
@@ -136,7 +137,7 @@ removeCmd toolbox mprojectname = do
 removeImageCmd :: Bool -> String -> IO ()
 removeImageCmd dryrun name =
   when dryrun $
-  removeImage (progname ++ "-" ++ containerBase name)
+  removeImage (progname +=+ containerBase name)
 
 -- FIXME dryrun
 stopCmd :: String -> Maybe ProjectName -> IO ()
@@ -153,14 +154,14 @@ enterCmd :: Bool -> Bool -> Maybe String -> Maybe ProjectName -> IO ()
 enterCmd dryrun running mbase mprojectname = do
   regexp <-
     case mprojectname of
-      Nothing -> return $ '^' : progname ++ "-"
-      Just (Name n) -> return $ '^' : progname ++ '-' : n
+      Nothing -> return $ progname +=+ fromMaybe "" mbase
+      Just (Name n) -> return $ progname ++ '-' : n
       Just (Project p) -> do
         projectDir <- resolveProject p
         return $ progname ++ '-' : fromMaybe ".*" mbase ++ '-' : workProjectName projectDir
   ps <- cmdLines "podman" $ "ps" :
         ["-a" | not running] ++
-        ["--filter", "name=" ++ regexp,
+        ["--filter", "name=" ++ '^' : regexp,
          "--format", "{{.Names}}"]
   case ps of
     [] ->
@@ -220,7 +221,7 @@ runCmd (RunOpts {..}) = do
     if unique
     then do
       pid <- getProcessID
-      return $ containerName ++ "-" ++ show pid
+      return $ containerName +=+ show pid
     else return containerName
   debug $ "container:" +-+ container
   running <-
@@ -374,7 +375,7 @@ containerBase = map (\c -> if c == ':' then '-' else c)
 
 commitToolbox :: Bool -> String -> Bool -> IO String
 commitToolbox dryrun toolbox refresh = do
-  let image = progname ++ '-' : toolbox
+  let image = progname +=+ toolbox
   imageExists <- cmdBool "podman" ["image", "exists", image]
   if imageExists && not refresh
     then return image
@@ -566,14 +567,14 @@ workProjectName = sanitizeName . takeFileName
 mkContainerName :: String -> Maybe ProjectName -> IO String
 mkContainerName base mprojectname = do
   case mprojectname of
-    Nothing -> return $ progname ++ '-' : base
+    Nothing -> return $ progname +=+ base
     Just mp ->
       case mp of
         Name ('^':n) -> return n
-        Name n -> return $ progname ++ '-' : n
+        Name n -> return $ progname +=+ n
         Project p -> do
           projectDir <- resolveProject p
-          return $ progname ++ '-' : base ++ '-' : workProjectName projectDir
+          return $ progname ++ '-' : base +=+ workProjectName projectDir
 
 -- shell command construction
 
@@ -609,3 +610,10 @@ shellQuote s
     isSafe c = c `elem` (['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "-_./=:@,+")
     escSQ '\'' = "'\\''"
     escSQ c = [c]
+
+-- | Combine two strings with a single space
+infixr 4 +=+
+(+=+) :: String -> String -> String
+s +=+ t | lastMay s == Just '-' = s ++ t
+        | headMay t == Just '-' = s ++ t
+s +=+ t = s ++ '-' : t
