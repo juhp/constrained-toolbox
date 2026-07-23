@@ -344,8 +344,7 @@ runCmd (RunOpts {..}) = do
       let workdirPart =
             case mprojectDir of
               Just d -> ["--workdir", d]
-              Nothing | not isImage -> ["--workdir", homedir]
-                      | otherwise -> []
+              Nothing -> ["--workdir", homedir]
           args = "run" :
                  [ "--rm" | not keep] ++
                  [ "-it", "--userns=keep-id",
