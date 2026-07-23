@@ -7,7 +7,7 @@ module Main (main) where
 import Control.Monad (unless, when, (>=>))
 import Data.List.Extra (intercalate, splitOn)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (isNothing, mapMaybe)
+import Data.Maybe (fromMaybe, isNothing, mapMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import System.Directory (canonicalizePath, createDirectoryIfMissing, doesFileExist, doesPathExist, getHomeDirectory)
@@ -150,41 +150,41 @@ stopCmd name mprojectname = do
 -- FIXME dryrun
 joinCmd :: Maybe String -> Maybe ProjectName -> IO ()
 joinCmd mbase mprojectname = do
-  case mbase of
-    Nothing -> do
-      regexp <-
-        case mprojectname of
-          Nothing -> return $ '^' : progname ++ "-"
-          Just (Name n) -> return $ '^' : progname ++ '-' : n
-          Just (Project p) -> do
-            projectDir <- resolveProject p
-            return $ progname ++ '-' : ".*" ++ '-' : workProjectName projectDir
-      ps <- cmdLines "podman" $ "ps" :
-            ["--filter", "name=" ++ regexp,
-             "--format", "{{.Names}}"]
-      case ps of
-        [] -> error' "no encapsule containers running"
-        [c] -> joinContainer False c []
-        _ -> error' $ "multiple containers match:\n" ++ unlines ps
-    Just base -> do
-      containerName <- mkContainerName base mprojectname
-      exists <- cmdBool "podman" ["container", "exists", containerName]
-      if not exists
-        then do
-        ps <- cmdLines "podman" $ "ps" :
-              ["--filter", "name=^" ++ containerName,
-               "--format", "{{.Names}}"]
-        case ps of
-          [] -> error' $ "container" +-+ containerName +-+ "not found"
-          [c] -> joinContainer False c []
-          _ -> error' $ "multiple containers match:\n" ++ unlines ps
-        else do
-          (_, out, _) <- cmdFull "podman"
-            ["container", "inspect", "-f", "{{.State.Running}}", containerName] ""
-          unless (take 4 out == "true") $ do
-            putStr "start "
-            cmd_ "podman" ["start", containerName]
-          joinContainer False containerName []
+  regexp <-
+    case mprojectname of
+      Nothing -> return $ '^' : progname ++ "-"
+      Just (Name n) -> return $ '^' : progname ++ '-' : n
+      Just (Project p) -> do
+        projectDir <- resolveProject p
+        return $ progname ++ '-' : fromMaybe ".*" mbase ++ '-' : workProjectName projectDir
+  ps <- cmdLines "podman" $ "ps" :
+        ["--filter", "name=" ++ regexp,
+         "--format", "{{.Names}}"]
+  case ps of
+    [] -> error' "no encapsule containers running"
+    [c] -> joinContainer False c []
+    _ -> error' $ "multiple running containers match:\n" ++ unlines ps
+
+    -- FIXME lost starting up a stopped exact match
+    -- Just base -> do
+    --   containerName <- mkContainerName base mprojectname
+    --   exists <- cmdBool "podman" ["container", "exists", containerName]
+    --   if not exists
+    --     then do
+    --     ps <- cmdLines "podman" $ "ps" :
+    --           ["--filter", "name=^" ++ containerName,
+    --            "--format", "{{.Names}}"]
+    --     case ps of
+    --       [] -> error' $ "container" +-+ containerName +-+ "not found"
+    --       [c] -> joinContainer False c []
+    --       _ -> error' $ "multiple containers match:\n" ++ unlines ps
+    --     else do
+    --       (_, out, _) <- cmdFull "podman"
+    --         ["container", "inspect", "-f", "{{.State.Running}}", containerName] ""
+    --       unless (take 4 out == "true") $ do
+    --         putStr "start "
+    --         cmd_ "podman" ["start", containerName]
+    --       joinContainer False containerName []
 
 joinContainer :: Bool -> String -> [String] -> IO ()
 joinContainer dryrun container command = do
